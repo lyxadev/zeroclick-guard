@@ -1,0 +1,22 @@
+# zeroclick-guard — workspace
+# Perisai anti-spyware & zero-click untuk Android (dan desktop).
+# Engine deteksi berbasis aturan + skor. Tanpa AI, tanpa cloud, privasi penuh.
+
+[workspace]
+resolver = "2"
+members = [
+    "core",
+    "cli",
+    "testlab",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/lyxadev/zeroclick-guard"
+authors = ["lyxadev"]
+
+[workspace.dependencies]
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = "1.0.128"

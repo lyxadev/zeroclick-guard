@@ -1,0 +1,16 @@
+[package]
+name = "zcg-core"
+description = "Engine deteksi inti zeroclick-guard: aturan + skor + IoC + deteksi beaconing."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "zcg_core"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,16 @@
+[package]
+name = "zcg-cli"
+description = "Antarmuka baris perintah zeroclick-guard: jalankan engine atas berkas observasi."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "zcg"
+path = "src/main.rs"
+
+[dependencies]
+zcg-core = { path = "../core" }
+serde_json = { workspace = true }

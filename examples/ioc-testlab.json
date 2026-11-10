@@ -1,0 +1,20 @@
+[
+  {
+    "value": "203.0.113.50",
+    "kind": "ip",
+    "label": "C2 simulasi (skenario zero-click)",
+    "source": "zcg-testlab (alamat uji RFC 5737, bukan host nyata)"
+  },
+  {
+    "value": "203.0.113.77",
+    "kind": "ip",
+    "label": "C2 simulasi (skenario spyware)",
+    "source": "zcg-testlab (alamat uji RFC 5737, bukan host nyata)"
+  },
+  {
+    "value": "evil.example",
+    "kind": "domain",
+    "label": "Domain C2 simulasi",
+    "source": "zcg-testlab (domain contoh RFC 2606, bukan domain nyata)"
+  }
+]

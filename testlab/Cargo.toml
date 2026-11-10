@@ -1,0 +1,16 @@
+[package]
+name = "zcg-testlab"
+description = "Simulator perilaku JINAK untuk menguji & mendemokan zeroclick-guard. TIDAK mengandung exploit atau spyware sungguhan."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "zcg-testlab"
+path = "src/main.rs"
+
+[dependencies]
+zcg-core = { path = "../core" }
+serde_json = { workspace = true }
