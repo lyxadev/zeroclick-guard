@@ -1,0 +1,17 @@
+# Standalone crate (its own [workspace]) so the desktop workspace build is
+# untouched; this is cross-compiled for Android via cargo-ndk only.
+[package]
+name = "zcg-android"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[lib]
+name = "zcg_android"
+crate-type = ["cdylib"]
+
+[dependencies]
+zcg-core = { path = "../../core" }
+jni = "0.21.1"
+
+[workspace]
