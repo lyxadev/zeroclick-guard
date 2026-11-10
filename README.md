@@ -209,6 +209,31 @@ Your normal messaging (still works): 12,000 bytes delivered  ✓
 > victims almost never are. It is a benign simulation: no real exploit or spyware, real
 > sockets and a real block.
 
+### 📊 Red team vs defender — scored in percentages
+
+A whole battery of attacks against the engine, scored. Not one dramatic run — a benchmark:
+
+```bash
+./target/release/zcg-redteam
+```
+
+![Red team benchmark](docs/media/redteam.gif)
+
+```
+Core attacks detected                    100.0%
+Core exfiltration blocked                100.0%
+False-positive rate (lower is better)    0.0%
+Evasion suite: detected 25% · exfiltration blocked 28%  (known gaps → roadmap)
+✓ DEFENSE HOLDS — 100.0% of targeted exfiltration blocked, 100% detected, 0% false positives.
+```
+
+Two suites, kept separate on purpose: **core** attacks (the behaviors the engine targets —
+C2 beaconing, exfil spikes, zero-click follow-up, known IoCs) must score 100%; the
+**evasion** suite (low-and-slow, foreground exfil, jittered beacons) is where real attackers
+get creative, and those gaps are reported honestly instead of hidden — they are the roadmap.
+The build fails if any core attack is not contained or a normal app is wrongly blocked, so
+these numbers can't quietly regress. Runs in [CI](.github/workflows/ci.yml) on every push.
+
 Compare with **normal** behavior (should raise no alarm):
 
 ```bash
@@ -228,8 +253,9 @@ zeroclick-guard/
 ├── testlab/   zcg-testlab — BENIGN behavior simulator for demos & testing.
 ├── proof/     zcg-proof  — Level-2 proof: feeds the engine REAL socket traffic.
 ├── pegasus/   zcg-pegasus — live, narrated Pegasus attack neutralized (verified).
+├── redteam/   zcg-redteam — adversarial benchmark, scored in percentages.
 ├── examples/  sample IoC lists for the demos & the gauntlet.
-├── scripts/   demo.sh · benchmark.sh · make_gif.py · make_proof_gif.py · make_pegasus_gif.py
+├── scripts/   demo.sh · benchmark.sh · make_gif.py · make_proof_gif.py · make_pegasus_gif.py · make_redteam_gif.py
 └── docs/      DESIGN · DETECTION · PROOF · ROADMAP.
 ```
 

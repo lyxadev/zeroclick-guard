@@ -1,0 +1,16 @@
+[package]
+name = "zcg-redteam"
+description = "Adversarial benchmark: a battery of Pegasus-style attacks vs the real engine, scored in percentages. Benign simulation on real sockets."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "zcg-redteam"
+path = "src/main.rs"
+
+[dependencies]
+zcg-core = { path = "../core" }

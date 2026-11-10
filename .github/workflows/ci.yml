@@ -111,3 +111,9 @@ jobs:
         env:
           ZCG_FAST: "1"
         run: ./target/release/zcg-pegasus
+
+      # Adversarial benchmark, scored in percentages. Exits 0 only if CORE
+      # attacks are 100% detected, ≥99% of their exfiltration is blocked, and
+      # there are 0% false positives. Evasion gaps are reported, not gated.
+      - name: "Red team vs defender — scored (zcg-redteam)"
+        run: ./target/release/zcg-redteam
