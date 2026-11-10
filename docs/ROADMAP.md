@@ -23,10 +23,14 @@ clearly marked as **planned**.
 - [x] Vision & honesty tracker ([VISION.md](VISION.md)): every "Beyond Pegasus" capability
       tied to a proof status (✅ / ◑ / 🔭), moved to ✅ only with a re-runnable test.
 
-## 🔜 Phase 1b — Android integration (planned)
+## 🔜 Phase 1b — Android integration (in progress)
 
-- [ ] Android app shell (Kotlin): permissions, basic UI.
-- [ ] Local `VpnService` to capture outbound connection metadata.
+See [android/README.md](../android/README.md) for phase-by-phase status. Built CI-first:
+Android CI assembles the APK on every push to `android/**`.
+
+- [x] Android app shell (Kotlin): permissions, basic UI, VpnService scaffold. *(Phase A)*
+- [ ] Local `VpnService` forwarding + feeding `zcg-core` (JNI via cargo-ndk). *(Phase B)*
+- [ ] Emulator instrumented test proving per-app blocking on-device. *(Phase C)*
 - [ ] Rust↔Kotlin bridge (`uniffi`/JNI) so `zcg-core` runs on the device.
 - [ ] System event reading: `PackageManager` (new apps), Accessibility status, permissions.
 - [ ] Real connection cutoff + notification + an explanation screen.
