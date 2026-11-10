@@ -30,13 +30,53 @@ fn main() {
         "spyware" => scenario_spyware(),
         "benign" => scenario_benign(),
         "brutal" => scenario_brutal(),
+        // Behavioral profiles inspired by publicly reported characteristics of
+        // known spyware families. These are BENIGN simulations (RFC 5737 test
+        // endpoints), NOT the real malware. The proof is that the engine flags
+        // the documented *behavior*, reproducibly.
+        "pegasus" => family_zeroclick("com.whatsapp", "203.0.113.10"),
+        "triangulation" => family_zeroclick("com.apple.mobilesms", "203.0.113.70"),
+        "predator" => family_installed(
+            "com.android.system.service",
+            "203.0.113.20",
+            &["RECORD_AUDIO", "CAMERA", "ACCESS_FINE_LOCATION", "READ_SMS"],
+        ),
+        "finfisher" => family_installed(
+            "com.adobe.flashplayer",
+            "203.0.113.30",
+            &["RECORD_AUDIO", "CAMERA", "READ_CONTACTS", "READ_CALL_LOG"],
+        ),
+        "hermit" => family_installed(
+            "com.kaspersky.update",
+            "203.0.113.40",
+            &["RECORD_AUDIO", "READ_SMS", "ACCESS_FINE_LOCATION"],
+        ),
+        "chrysaor" => family_installed(
+            "com.network.android",
+            "203.0.113.60",
+            &["RECORD_AUDIO", "READ_SMS", "READ_CONTACTS"],
+        ),
+        "stalkerware" => family_installed(
+            "com.family.locator.pro",
+            "198.51.100.50",
+            &[
+                "ACCESS_FINE_LOCATION",
+                "READ_SMS",
+                "READ_CALL_LOG",
+                "RECORD_AUDIO",
+            ],
+        ),
         _ => {
             eprintln!(
                 "zeroclick-guard benign behavior simulator\n\n\
-                 scenarios: zeroclick | spyware | brutal | benign\n\n\
+                 scenarios:\n  \
+                 zeroclick | spyware | brutal | benign\n  \
+                 family profiles: pegasus | predator | finfisher | hermit |\n  \
+                 chrysaor | triangulation | stalkerware\n\n\
                  example: zcg-testlab brutal | zcg --ioc examples/ioc-testlab.json --replay\n\n\
                  Note: this only prints mock observations (JSONL). There is no real\n\
-                 exploit or spyware inside it."
+                 exploit or spyware inside it. Family names denote BEHAVIORAL\n\
+                 profiles inspired by public reporting, not the actual malware."
             );
             std::process::exit(if scenario.is_empty() { 0 } else { 1 });
         }
@@ -417,6 +457,72 @@ fn scenario_benign() -> Vec<Observation> {
         ));
     }
 
+    v
+}
+
+/// Generic zero-click behavioral profile: normal traffic → inbound media →
+/// NEW external C2 within the window → exfil → regular beacon. Models families
+/// like Pegasus / Triangulation (delivery differs; the *behavior* is detected).
+fn family_zeroclick(app: &str, c2: &str) -> Vec<Observation> {
+    let mut v = Vec::new();
+    // Known-good baseline traffic to the app's real servers.
+    v.push(flow(
+        2_000,
+        app,
+        false,
+        "198.51.100.10",
+        443,
+        Some("cdn.example"),
+        1_000,
+        9_000,
+    ));
+    // Inbound media (the zero-click door) — not yet suspicious on its own.
+    v.push(Observation::Media {
+        ts: 10_000,
+        app: app.to_string(),
+        bytes: 1_050_000,
+    });
+    // Phone-home beacon to a brand-new external C2, perfectly regular every 60s.
+    // The first tick (38s after media) is also the zero-click follow-up.
+    for i in 0..6u64 {
+        let ts = 38_000 + i * 60_000;
+        // The 2nd tick carries the big exfiltration payload.
+        let out = if i == 1 { 3_600_000 } else { 850 };
+        v.push(flow(ts, app, true, c2, 443, None, out, 110));
+    }
+    v
+}
+
+/// Generic installed-spyware behavioral profile: app installed → requests
+/// sensitive permissions → enables Accessibility → contacts C2 → exfil →
+/// regular beacon. Models families like Predator / FinFisher / Hermit /
+/// Chrysaor and commercial stalkerware.
+fn family_installed(app: &str, c2: &str, perms: &[&str]) -> Vec<Observation> {
+    let mut v = Vec::new();
+    v.push(Observation::AppInstalled {
+        ts: 1_000,
+        app: app.to_string(),
+    });
+    let mut t = 2_000;
+    for p in perms {
+        v.push(Observation::Permission {
+            ts: t,
+            app: app.to_string(),
+            permission: p.to_string(),
+        });
+        t += 500;
+    }
+    v.push(Observation::Accessibility {
+        ts: t,
+        app: app.to_string(),
+    });
+    // Regular beacon to a new external C2 every 70s; first tick = first contact.
+    // The 2nd tick carries the big exfiltration payload.
+    for i in 0..7u64 {
+        let ts = 14_000 + i * 70_000;
+        let out = if i == 1 { 4_500_000 } else { 1_000 };
+        v.push(flow(ts, app, true, c2, 8443, None, out, 140));
+    }
     v
 }
 

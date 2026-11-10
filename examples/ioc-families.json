@@ -1,0 +1,9 @@
+[
+  { "value": "203.0.113.10", "kind": "ip", "label": "Simulated C2 — Pegasus-style profile",       "source": "zcg-testlab (RFC 5737 test address, not a real host)" },
+  { "value": "203.0.113.70", "kind": "ip", "label": "Simulated C2 — Triangulation-style profile",  "source": "zcg-testlab (RFC 5737 test address, not a real host)" },
+  { "value": "203.0.113.20", "kind": "ip", "label": "Simulated C2 — Predator-style profile",       "source": "zcg-testlab (RFC 5737 test address, not a real host)" },
+  { "value": "203.0.113.30", "kind": "ip", "label": "Simulated C2 — FinFisher-style profile",      "source": "zcg-testlab (RFC 5737 test address, not a real host)" },
+  { "value": "203.0.113.40", "kind": "ip", "label": "Simulated C2 — Hermit-style profile",         "source": "zcg-testlab (RFC 5737 test address, not a real host)" },
+  { "value": "203.0.113.60", "kind": "ip", "label": "Simulated C2 — Chrysaor-style profile",       "source": "zcg-testlab (RFC 5737 test address, not a real host)" },
+  { "value": "198.51.100.50", "kind": "ip", "label": "Simulated C2 — stalkerware-style profile",   "source": "zcg-testlab (RFC 5737 test address, not a real host)" }
+]

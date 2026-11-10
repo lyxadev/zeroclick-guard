@@ -92,5 +92,8 @@ jobs:
           fi
           echo "✓ benign scenario stayed clean — no false positive"
 
+      - name: "World Spyware Gauntlet (all family profiles MUST be detected)"
+        run: ./scripts/benchmark.sh
+
       - name: "Show the brutal attack being neutralized (for the logs)"
         run: ./target/release/zcg-testlab brutal | ./target/release/zcg --ioc examples/ioc-testlab.json || true

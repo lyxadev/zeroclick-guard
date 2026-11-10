@@ -17,6 +17,14 @@ No AI. No cloud. Full privacy.
 
 ---
 
+<div align="center">
+
+![World Spyware Gauntlet](docs/media/gauntlet.gif)
+
+*The real engine vs. the behavioral profiles of 7 well-known spyware families. Not a claim — proof you can re-run.*
+
+</div>
+
 > ### 🚧 Status
 > **Early development.** The core detection engine **already works end-to-end and is
 > demoable** (see below). Android integration (VpnService) is in progress — see the
@@ -118,6 +126,34 @@ The attack unfolds on screen, then is cut off one by one:
 
 > Still honest: `--replay` only controls the **display tempo** so it is watchable. Every
 > alert, score, and cutoff comes from the **exact same engine** as the product.
+
+### 🌍 Proof: the World Spyware Gauntlet
+
+Run the behavioral profiles of real spyware families through the engine and get a scoreboard:
+
+```bash
+cargo build --workspace --release
+./scripts/benchmark.sh
+```
+
+```
+  ● DETECTED  Pegasus (NSO Group)      zero-click via messenger   score 160 CRITICAL
+  ● DETECTED  Operation Triangulation  zero-click via iMessage    score 160 CRITICAL
+  ● DETECTED  Predator (Cytrox)        installed, full capture    score 160 CRITICAL
+  ● DETECTED  FinFisher / FinSpy       installed, mic + camera    score 160 CRITICAL
+  ● DETECTED  Hermit (RCS Lab)         installed via SMS lure     score 160 CRITICAL
+  ● DETECTED  Chrysaor                 accessibility keylogging   score 160 CRITICAL
+  ● DETECTED  Commercial stalkerware   hidden tracker app         score 160 CRITICAL
+  RESULT: 7/7 families DETECTED — 0 missed.
+```
+
+> **What this proves, honestly.** Each family name is a **behavioral profile** inspired by
+> public reporting — a *benign* simulation using RFC 5737 test endpoints, **not** the real
+> malware. The proof is that the engine flags the documented *behavior* (C2 beaconing,
+> exfiltration, zero-click follow-up, Accessibility abuse) **reproducibly** — and it still
+> does so with the IoC list empty, i.e. purely from behavior. It is **not** a guarantee
+> against a live, evolving implant; it is evidence the detection logic works and is not just
+> theory. This same gauntlet runs in [CI](.github/workflows/ci.yml) on every push.
 
 Compare with **normal** behavior (should raise no alarm):
 
