@@ -20,10 +20,9 @@ class NativeEngineTest {
         try {
             val app = "com.demo.spyware"
             val c2 = "203.0.113.5" // external (RFC 5737 test address)
-            var score = 0
 
             // A real exfil-sized flow, then a regular beacon to the same C2.
-            score = NativeEngine.observeFlow(h, 0L, app, true, c2, 443, 3_000_000L)
+            var score = NativeEngine.observeFlow(h, 0L, app, true, c2, 443, 3_000_000L)
             for (i in 1..5) {
                 score = NativeEngine.observeFlow(h, i * 60_000L, app, true, c2, 443, 800L)
             }
@@ -42,7 +41,7 @@ class NativeEngineTest {
             // Foreground app, irregular, modest traffic → should not alarm.
             val app = "com.good.app"
             val offsets = longArrayOf(0, 3_000, 47_000, 230_000)
-            var score = 0
+            var score = -1
             for (t in offsets) {
                 score = NativeEngine.observeFlow(h, t, app, false, "203.0.113.9", 443, 500L)
             }

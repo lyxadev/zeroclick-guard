@@ -10,14 +10,22 @@ This is built in phases, and only CI-green phases are claimed as working.
 
 | Phase | Goal | Status |
 |---|---|---|
-| **A** | Android app builds; `VpnService` tap established; packets parsed | 🔨 in progress (this) |
-| **B** | `zcg-core` (Rust) wired in via JNI (`cargo-ndk`), same engine on device | 🔭 next |
-| **C** | Instrumented emulator test proving per-app blocking on-device | 🔭 next |
+| **A** | Android app builds; `VpnService` tap established; packets parsed | ✅ CI-green |
+| **B** | `zcg-core` (Rust) wired in via JNI (`cargo-ndk`), same engine on device | ✅ CI-green |
+| **C1** | Emulator test: the real engine runs on-device and flags spyware behavior | ✅ CI-green |
+| **C2** | On-device `VpnService` forwarding + per-app block, verified on emulator | 🔭 next |
 
-**Phase A does not provide protection.** The service establishes the TUN and
-reads/parses packets, but does not yet feed the engine, forward allowed traffic,
-or drop blocked traffic. It is the plumbing the later phases build on. Do not
-ship it as-is.
+**What is proven (in CI, on an emulator):** the exact same `zcg-core` engine,
+compiled for Android and called over JNI, runs on a real Android runtime and
+flags spyware behavior (score ≥ 60, behavior-only) while keeping a normal app
+low. See [`NativeEngineTest`](app/src/androidTest/kotlin/ai/lyxvo/zeroclickguard/NativeEngineTest.kt)
+and the [Android workflow](../.github/workflows/android.yml).
+
+**What is NOT done yet (C2):** the `VpnService` still only establishes the TUN
+and parses packets — it does not yet forward allowed traffic or drop blocked
+traffic. So the app does not provide on-device protection yet; the desktop proof
+([PROOF.md](../docs/PROOF.md)) already demonstrates the enforce-and-verify
+mechanism, and C2 brings it onto the device. Do not ship this as protection yet.
 
 ## Build
 
