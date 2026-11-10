@@ -103,3 +103,11 @@ jobs:
       # the normal app is not a false positive. This GATES the build.
       - name: "Verified blocking on real traffic (zcg-proof)"
         run: ./target/release/zcg-proof
+
+      # Pegasus-style attack neutralized end to end: every exfiltration attempt
+      # is dropped at the tap and the controlled C2 receives 0 bytes. Exits 0
+      # only if nothing was stolen. GATES the build.
+      - name: "Pegasus live attack neutralized (zcg-pegasus)"
+        env:
+          ZCG_FAST: "1"
+        run: ./target/release/zcg-pegasus

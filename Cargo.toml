@@ -9,6 +9,7 @@ members = [
     "cli",
     "testlab",
     "proof",
+    "pegasus",
 ]
 
 [workspace.package]
@@ -17,7 +18,7 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/lyxadev/zeroclick-guard"
 homepage = "https://lyxvo.ai"
-authors = ["lyxadev <halo@siappergi.com>"]
+authors = ["lyxadev <halo@lyxvo.ai>"]
 
 [workspace.dependencies]
 serde = { version = "1.0.210", features = ["derive"] }

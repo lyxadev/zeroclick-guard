@@ -1,0 +1,16 @@
+[package]
+name = "zcg-pegasus"
+description = "Live, narrated Pegasus-style attack demo neutralized by the real zcg-core engine on real sockets. Benign simulation — no exploit or spyware."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "zcg-pegasus"
+path = "src/main.rs"
+
+[dependencies]
+zcg-core = { path = "../core" }

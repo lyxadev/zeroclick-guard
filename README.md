@@ -182,6 +182,33 @@ Normal app after block: 912 bytes delivered  ✓ (NOT blocked)   ← no false po
 record lands in `target/zcg-evidence.json`. See [docs/PROOF.md](docs/PROOF.md) for the full
 real-vs-provided breakdown and honest limits (full OS-level anti-bypass is on-device, Level 3).
 
+### 🕵️ Watch a Pegasus-style attack get neutralized
+
+A narrated, live demo of the Pegasus kill chain — and where a network defender can actually
+act:
+
+```bash
+./target/release/zcg-pegasus     # a few seconds
+```
+
+![Pegasus live demo](docs/media/pegasus.gif)
+
+The implant tries to exfiltrate your photos, messages, a mic recording, your location and
+passwords. Every attempt is **dropped at the tap** before it reaches the controlled C2, which
+counts bytes itself:
+
+```
+Bytes of your data that reached the Pegasus C2:   0 bytes  ✓
+Exfiltration attempts to the C2: 101 → 101 blocked / 0 delivered  ✓
+Your normal messaging (still works): 12,000 bytes delivered  ✓
+⛔ PEGASUS NEUTRALIZED — 0 bytes of your data left the device
+```
+
+> Honest, and said on screen: the zero-click **exploit** is not prevented (it cannot be,
+> without root). What is stopped is the **theft** — and the victim is alerted, which Pegasus
+> victims almost never are. It is a benign simulation: no real exploit or spyware, real
+> sockets and a real block.
+
 Compare with **normal** behavior (should raise no alarm):
 
 ```bash
@@ -200,8 +227,9 @@ zeroclick-guard/
 ├── cli/       zcg        — run the engine over observation files (demo & test).
 ├── testlab/   zcg-testlab — BENIGN behavior simulator for demos & testing.
 ├── proof/     zcg-proof  — Level-2 proof: feeds the engine REAL socket traffic.
+├── pegasus/   zcg-pegasus — live, narrated Pegasus attack neutralized (verified).
 ├── examples/  sample IoC lists for the demos & the gauntlet.
-├── scripts/   demo.sh · benchmark.sh (gauntlet) · make_gif.py · make_proof_gif.py
+├── scripts/   demo.sh · benchmark.sh · make_gif.py · make_proof_gif.py · make_pegasus_gif.py
 └── docs/      DESIGN · DETECTION · PROOF · ROADMAP.
 ```
 
@@ -227,8 +255,8 @@ modified version must open theirs too.
 
 ## Contact & official links
 
-- 🌐 Website: **[lyxvo.ai](https://lyxvo.ai)** · **[siappergi.com](https://siappergi.com)**
-- ✉️ Email: **halo@siappergi.com**
+- 🌐 Website: **[lyxvo.ai](https://lyxvo.ai)**
+- ✉️ Email: **halo@lyxvo.ai**
 - 💻 Repository: [github.com/lyxadev/zeroclick-guard](https://github.com/lyxadev/zeroclick-guard)
 
 For organizations (newsrooms, NGOs, law firms) or partnerships, reach us at the email above.

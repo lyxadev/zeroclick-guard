@@ -159,5 +159,5 @@ Details: [ROADMAP.md](ROADMAP.md).
 
 ## Contact
 
-- Website: [lyxvo.ai](https://lyxvo.ai) · [siappergi.com](https://siappergi.com)
-- Email: halo@siappergi.com
+- Website: [lyxvo.ai](https://lyxvo.ai)
+- Email: halo@lyxvo.ai

@@ -109,6 +109,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "zcg-pegasus"
+version = "0.1.0"
+dependencies = [
+ "zcg-core",
+]
+
+[[package]]
 name = "zcg-proof"
 version = "0.1.0"
 dependencies = [
