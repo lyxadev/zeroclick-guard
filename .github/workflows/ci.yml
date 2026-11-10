@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-test:
+    name: Build, lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: rustup component add clippy rustfmt
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Unit tests
+        run: cargo test --workspace
+
+  attack-simulation:
+    name: Attack simulation (defender must catch it)
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binaries
+        run: cargo build --workspace --release
+
+      # The engine exits with code 2 when any app reaches High/Critical.
+      # These steps run the BENIGN simulator (jinak) against the REAL engine
+      # and assert it reacts correctly. Attacker = simulation, defender = real.
+      - name: "Threat scenarios MUST be detected (exit code 2)"
+        run: |
+          set +e
+          fail=0
+          for sc in zeroclick spyware brutal; do
+            echo "::group::scenario: $sc"
+            ./target/release/zcg-testlab "$sc" \
+              | ./target/release/zcg --ioc examples/ioc-testlab.json
+            code=$?
+            echo "::endgroup::"
+            if [ "$code" -ne 2 ]; then
+              echo "::error::scenario '$sc' NOT flagged (expected exit 2, got $code)"
+              fail=1
+            else
+              echo "✓ '$sc' correctly flagged as a threat"
+            fi
+          done
+          exit $fail
+
+      - name: "Benign scenario MUST stay clean (exit code 0)"
+        run: |
+          set +e
+          echo "::group::scenario: benign"
+          ./target/release/zcg-testlab benign \
+            | ./target/release/zcg --ioc examples/ioc-testlab.json
+          code=$?
+          echo "::endgroup::"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::benign scenario raised an alarm (false positive, exit $code)"
+            exit 1
+          fi
+          echo "✓ benign scenario stayed clean — no false positive"
+
+      - name: "Show the brutal attack being neutralized (for the logs)"
+        run: ./target/release/zcg-testlab brutal | ./target/release/zcg --ioc examples/ioc-testlab.json || true

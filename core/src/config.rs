@@ -1,12 +1,12 @@
-//! Konfigurasi engine: ambang batas setiap aturan deteksi.
+//! Engine configuration: the thresholds for every detection rule.
 //!
-//! Semua angka di sini sengaja dibuka & bisa diatur. Itu bagian dari janji
-//! "bisa diaudit": tidak ada ambang rahasia. Nilai default dipilih
-//! konservatif untuk menekan alarm palsu.
+//! All numbers here are intentionally open and tunable. That is part of the
+//! "auditable" promise: there are no secret thresholds. Defaults are chosen
+//! conservatively to keep false positives low.
 
 use serde::{Deserialize, Serialize};
 
-/// Bobot skor tiap aturan. Dipisah dari ambang agar mudah ditala.
+/// Score weight for each rule. Separated from thresholds for easy tuning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Weights {
     pub ioc_match: u32,
@@ -36,22 +36,23 @@ impl Default for Weights {
 pub struct Config {
     pub weights: Weights,
 
-    /// Jumlah koneksi minimal ke tujuan yang sama sebelum pola beacon dinilai.
+    /// Minimum number of connections to the same destination before a beacon
+    /// pattern is evaluated.
     pub beacon_min_hits: usize,
-    /// Koefisien variasi maksimum (stddev/mean) interval agar dianggap "teratur
-    /// seperti robot". Makin kecil makin ketat. 0.15 = jitter < 15%.
+    /// Maximum coefficient of variation (stddev/mean) of intervals to count as
+    /// "regular like a robot". Smaller is stricter. 0.15 = jitter < 15%.
     pub beacon_max_cv: f64,
-    /// Rentang interval beacon yang masuk akal (milidetik).
+    /// Plausible beacon interval range (milliseconds).
     pub beacon_min_interval_ms: u64,
     pub beacon_max_interval_ms: u64,
 
-    /// Jendela waktu untuk menjumlahkan byte keluar (milidetik).
+    /// Time window for summing outbound bytes (milliseconds).
     pub exfil_window_ms: u64,
-    /// Ambang byte keluar dari aplikasi latar belakang dalam satu jendela.
+    /// Outbound byte threshold from a background app within one window.
     pub exfil_threshold_bytes: u64,
 
-    /// Berapa lama setelah media masuk sebuah koneksi baru masih dianggap
-    /// "buntut zero-click" (milidetik).
+    /// How long after inbound media a new connection still counts as a
+    /// "zero-click follow-up" (milliseconds).
     pub zeroclick_window_ms: u64,
 }
 
@@ -64,14 +65,14 @@ impl Default for Config {
             beacon_min_interval_ms: 2_000,
             beacon_max_interval_ms: 3_600_000,
             exfil_window_ms: 60_000,
-            exfil_threshold_bytes: 2_000_000, // 2 MB dari app latar belakang = red flag
-            zeroclick_window_ms: 120_000,     // 2 menit
+            exfil_threshold_bytes: 2_000_000, // 2 MB from a background app = red flag
+            zeroclick_window_ms: 120_000,     // 2 minutes
         }
     }
 }
 
-/// Daftar izin yang dianggap sensitif. Kombinasi izin ini dengan layanan
-/// Accessibility adalah sidik jari khas spyware Android.
+/// Permissions considered sensitive. The combination of these with an
+/// Accessibility service is a classic Android spyware fingerprint.
 pub const SENSITIVE_PERMISSIONS: &[&str] = &[
     "RECORD_AUDIO",
     "READ_SMS",

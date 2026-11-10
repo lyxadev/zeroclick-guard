@@ -1,157 +1,163 @@
-# Dokumen Acuan — zeroclick-guard
+# Design Reference — zeroclick-guard
 
-Dokumen ini adalah "peta" proyek: visi, apa yang realistis (dan tidak), arsitektur,
-prinsip kejujuran, pembagian terbuka vs berbayar, dan arah bisnis. Semua keputusan desain
-dirujuk ke sini.
+This document is the project's "map": vision, what is realistic (and what is not),
+architecture, honesty principles, the open vs. paid split, and business direction. Design
+decisions trace back here.
 
 ---
 
-## 1. Visi
+## 1. Vision
 
-> Menjadi perisai anti-spyware paling **mudah dipakai** dan paling **jujur** —
-> khususnya untuk Indonesia & Asia Tenggara, pasar yang belum digarap serius —
-> sehingga jurnalis, aktivis, pengacara, dan orang biasa bisa **tahu** saat mereka
-> diintai, dan **menghentikan** kerugiannya.
+> Become the most **usable** and most **honest** anti-spyware shield — especially for
+> Indonesia & Southeast Asia, a market no one has served seriously — so that journalists,
+> activists, lawyers, and ordinary people can **know** when they are being watched, and
+> **stop** the damage.
 
-Kami **tidak** berusaha "mengalahkan Pegasus" dalam arti mencegah exploit kelas negara.
-Itu tidak realistis di perangkat non-root. Target kami adalah sisi **pertahanan**: deteksi
-cepat + pemutusan + penjelasan yang bisa dimengerti orang awam.
+We do **not** try to "beat Pegasus" in the sense of preventing a nation-state exploit. That
+is not realistic on a non-rooted device. Our target is the **defensive** side: fast
+detection + cutoff + an explanation an ordinary person can understand.
 
-## 2. Apa yang realistis — dan apa yang TIDAK
+## 2. What is realistic — and what is NOT
 
-### Kenyataan keras Android
-Android menyandbox aplikasi dengan ketat. Tanpa **root**, satu aplikasi **tidak bisa**
-melihat memori, syscall, atau berkas aplikasi lain. Ini batas sistem operasi, bukan batas
-bahasa pemrograman. Maka:
+### The hard reality of Android
+Android sandboxes apps strictly. Without **root**, one app **cannot** see another app's
+memory, syscalls, or files. This is an OS limit, not a programming-language limit. So:
 
-| Fase serangan zero-click | Bisa kita tangani (non-root)? |
+| Zero-click attack phase | Can we handle it (non-root)? |
 |---|---|
-| Media jahat dikirim | Tidak terlihat |
-| Media diproses otomatis, exploit berjalan | ❌ **Tidak** — di dalam proses app lain |
-| Spyware aktif di memori | Sebagian (lewat efek sampingnya) |
-| **Spyware konek C2 / exfiltrasi data** | ✅ **Ya — di sinilah kekuatan kami** |
-| Spyware minta izin / Accessibility | ✅ Ya |
+| Malicious media sent | Not visible |
+| Media auto-processed, exploit runs | ❌ **No** — inside another app's process |
+| Spyware active in memory | Partly (via side effects) |
+| **Spyware connects to C2 / exfiltrates data** | ✅ **Yes — this is our strength** |
+| Spyware requests permissions / Accessibility | ✅ Yes |
 
-**Janji inti yang jujur:** _"Kami tidak mencegah exploit zero-click. Kami mendeteksi
-perilaku pasca-eksploitasi — C2, exfiltrasi, penyalahgunaan izin — dan memutusnya, dalam
-hitungan detik."_
+**The honest core promise:** _"We do not prevent the zero-click exploit. We detect the
+post-exploitation behavior — C2, exfiltration, permission abuse — and cut it off, within
+seconds."_
 
-### Yang bisa dilakukan tanpa root (dan sudah terbukti di industri)
-- **VpnService lokal** — rutekan semua trafik perangkat melalui VPN *di dalam perangkat
-  sendiri* (tidak ke server mana pun) untuk inspeksi tujuan koneksi. (Pendekatan NetGuard,
-  TrackerControl.)
-- **IoC matching** — cocokkan tujuan dengan indikator spyware yang dikenal. (Pendekatan
-  MVT milik Amnesty International.)
-- **Deteksi perilaku** — beaconing, exfiltrasi, tujuan asing, penyalahgunaan izin.
+### What is doable without root (and proven in the industry)
+- **Local VpnService** — route all device traffic through a VPN *inside the device itself*
+  (not to any server) to inspect connection destinations. (NetGuard, TrackerControl approach.)
+- **IoC matching** — match destinations against known spyware indicators. (Amnesty
+  International's MVT approach.)
+- **Behavioral detection** — beaconing, exfiltration, unknown destinations, permission abuse.
 
-## 3. Kenapa TANPA AI (untuk sekarang)
+## 3. Why NO AI (for now)
 
-Engine inti **deterministik dan berbasis aturan**, bukan AI. Ini pilihan sadar, bukan
-kekurangan:
+The core engine is **deterministic and rule-based**, not AI. This is a deliberate choice,
+not a shortcoming:
 
-- **Bisa diaudit** — tiap keputusan punya alasan pasti; tidak ada "halusinasi".
-- **Cepat & ringan** — real-time di perangkat, hemat baterai, tanpa panggilan server.
-- **Gratis & privat** — tidak ada data dikirim ke cloud, tidak ada tagihan.
-- **Jalan offline.**
+- **Auditable** — every decision has a definite reason; no "hallucinations".
+- **Fast & light** — real-time on device, battery-friendly, no server calls.
+- **Free & private** — no data sent to the cloud, no bills.
+- **Works offline.**
 
-Mayoritas tool keamanan kelas dunia (firewall, IDS seperti Suricata/Snort) berbasis aturan,
-bukan AI. AI **tidak menambah kemampuan menangkap** — ia hanya (nanti) memperbaiki
-*penjelasan* dan mengurangi alarm palsu di kasus abu-abu. Lihat Roadmap Fase 2.
+Most world-class security tools (firewalls, IDS like Suricata/Snort) are rule-based, not AI.
+AI **does not add detection power** — it would (later) only improve the *explanations* and
+reduce false positives in gray-area cases. See Roadmap Phase 2.
 
-> **Aturan penamaan jujur:** selama belum ada model AI sungguhan, fitur penjelasan disebut
-> **"berbasis aturan"**, bukan "AI". Tidak ada klaim "AI" sampai benar-benar ada AI.
+> **Honest naming rule:** until a real AI model exists, the explanation feature is called
+> **"rule-based"**, not "AI". No "AI" claim until there is actually AI.
 
-## 4. Arsitektur
+## 4. Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  SUMBER OBSERVASI (pluggable)                                │
-│   • Android VpnService  • pcap desktop  • simulator uji      │
+│  OBSERVATION SOURCES (pluggable)                             │
+│   • Android VpnService  • desktop pcap  • test simulator     │
 └───────────────────────────┬─────────────────────────────────┘
-                            │  aliran Observation (JSONL / in-proc)
+                            │  Observation stream (JSONL / in-proc)
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  zcg-core  (Rust, deterministik)                             │
-│   IoC ─ korelasi zero-click ─ beacon ─ exfil ─ izin ─ skor   │
+│  zcg-core  (Rust, deterministic)                             │
+│   IoC ─ zero-click correlation ─ beacon ─ exfil ─ perms ─ score │
 └───────────────────────────┬─────────────────────────────────┘
                             │  Finding + Verdict
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  AKSI:  alert  ·  putus koneksi  ·  saran  ·  (nanti) AI      │
+│  ACTION:  alert  ·  cut off  ·  guidance  ·  (later) AI       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Kunci:** `zcg-core` tidak tahu dari mana observasi datang. Maka engine yang sama dipakai
-di produk Android **dan** di demo/uji — tidak ada dua versi, tidak ada yang dipalsukan.
+**Key:** `zcg-core` does not know where observations come from. So the same engine runs in
+the Android product **and** in the demo/tests — there are not two versions, and nothing is
+faked.
 
-### Peran Rust vs Kotlin (untuk Android nanti)
-Aplikasi Android **tidak bisa** full-Rust. Pembagiannya:
-- **Kotlin** → shell: VpnService, UI, izin, event sistem (PackageManager, Accessibility).
-- **Rust (`zcg-core` via JNI/`uniffi`)** → engine: parsing paket, aturan, skor, IoC.
+### Rust vs. Kotlin (for Android, later)
+An Android app **cannot** be pure Rust. The split:
+- **Kotlin** → the shell: VpnService, UI, permissions, system events (PackageManager,
+  Accessibility).
+- **Rust (`zcg-core` via JNI/`uniffi`)** → the engine: packet parsing, rules, scoring, IoC.
 
-Core Rust yang sama juga bisa dipakai ulang di desktop (Linux/Windows) nanti.
+The same Rust core can be reused on desktop (Linux/Windows) later.
 
-## 5. Prinsip kejujuran demo (garis merah)
+## 5. Demo honesty principles (the red line)
 
-Demo menampilkan "penyerang" (simulator jinak) vs "defender" (engine asli).
+The demo shows an "attacker" (benign simulator) vs. a "defender" (the real engine).
 
-- ✅ **Defender 100% asli.** Alert, skor, pemutusan — semua dari engine sungguhan.
-- ✅ **Penyerang = simulator perilaku jinak.** Menghasilkan trafik/observasi nyata, tapi
-  tanpa exploit & tanpa data sungguhan (pakai alamat uji RFC 5737 & domain RFC 2606).
-- ❌ **DILARANG** memalsukan respons defender (alert yang di-hardcode, animasi tanpa
-  engine). Demo **wajib** memanggil engine yang sama dengan produk.
+- ✅ **The defender is 100% real.** Alerts, scores, cutoff — all from the real engine.
+- ✅ **The attacker is a benign behavior simulator.** It generates real traffic/observations
+  but with no exploit and no real data (it uses RFC 5737 test addresses & RFC 2606 domains).
+- ❌ **It is FORBIDDEN** to fake the defender's response (hard-coded alerts, animations
+  without the engine). The demo **must** call the same engine as the product.
 
-Alasan: jika kami curang sedikit saja, begitu ada ahli menguji dengan serangan nyata dan
-engine diam → reputasi hancur selamanya. Untuk tool keamanan, kepercayaan adalah segalanya.
+Reason: if we cheat even slightly, the moment an expert tests with a real attack and the
+engine stays silent → the reputation is gone for good. For a security tool, trust is
+everything.
 
-**Kami tidak membangun spyware sungguhan.** Sisi "penyerang" selalu berupa simulator
-perilaku. Membangun spyware fungsional berbahaya, bisa bocor/disalahgunakan, dan ilegal —
-dan tidak diperlukan: yang perlu diuji adalah *perilaku* yang dideteksi, bukan exploit-nya.
+**We do not build real spyware.** The "attacker" side is always a behavior simulator.
+Building functional spyware is dangerous, can leak / be abused, and is illegal — and it is
+unnecessary: what needs testing is the *behavior* being detected, not the exploit.
 
-## 6. Model terbuka vs berbayar (open-core)
+## 6. Open vs. paid model (open-core)
 
-Tool keamanan tertutup sulit dipercaya. Maka inti kami **open source** (membangun
-kepercayaan + komunitas + audit publik), sementara monetisasi di lapisan layanan.
+Closed-source security tools are hard to trust. So our core is **open source** (building
+trust + community + public audit), while monetization lives in the service layer.
 
-| Terbuka (gratis, open source) | Berbayar / privat |
+| Open (free, open source) | Paid / private |
 |---|---|
-| Engine deteksi inti (`zcg-core`) | Feed IoC premium (ter-update, terkurasi) |
-| VpnService + aturan dasar | Lapisan penjelas AI (Fase 2) |
-| Simulator/test lab | Dashboard B2B / manajemen tim |
-| Daftar IoC dasar | Dukungan & SLA |
+| Core detection engine (`zcg-core`) | Premium IoC feed (fresh, curated) |
+| VpnService + basic rules | AI explanation layer (Phase 2) |
+| Simulator / test lab | B2B dashboard / team management |
+| Basic IoC list | Support & SLA |
 
-**Prinsip:** yang membangun **kepercayaan** → dibuka. Yang membangun **pendapatan** →
-ditahan. Uang ada di *layanan + data + dukungan*, bukan di kode inti.
+**Principle:** what builds **trust** → open. What builds **revenue** → held back. The money
+is in *service + data + support*, not in the core code.
 
-Lisensi **GPLv3** menjaga agar kode inti tidak diam-diam dijadikan produk tertutup.
+The **GPLv3** license keeps the core code from quietly becoming a closed product.
 
-## 7. Posisi vs pembanding
+## 7. Position vs. alternatives
 
-| | Fokus | Celah yang kami isi |
+| | Focus | The gap we fill |
 |---|---|---|
-| **MVT** (Amnesty) | Forensik IoC, open source | Terlalu teknis untuk orang awam |
-| **iVerify** | Deteksi spyware mobile (komersial) | Mahal, berbahasa Inggris |
-| **Lookout / Zimperium** | Enterprise | Mahal, bukan untuk individu |
-| **zeroclick-guard** | Deteksi perilaku real-time | **Mudah, bahasa Indonesia, terjangkau, terbuka** |
+| **MVT** (Amnesty) | Forensic IoC, open source | Too technical for ordinary people |
+| **iVerify** | Mobile spyware detection (commercial) | Expensive, English-only |
+| **Lookout / Zimperium** | Enterprise | Expensive, not for individuals |
+| **zeroclick-guard** | Real-time behavioral detection | **Easy, localized, affordable, open** |
 
-## 8. Arah bisnis (ringkas & realistis)
+## 8. Business direction (short & realistic)
 
-- **B2B dulu** (media, NGO, kantor hukum): sedikit pembeli, bayar serius & stabil. Satu
-  kontrak organisasi = ratusan user individu. Jalur tercepat menghasilkan.
-- **Individu high-risk** (jurnalis, aktivis): langganan / freemium.
-- Pendapatan datang dari **langganan layanan + feed IoC + dukungan B2B**, bukan dari kode
-  yang gratis.
+- **B2B first** (newsrooms, NGOs, law firms): few buyers, but they pay seriously and
+  steadily. One organization contract = hundreds of individual users. The fastest path to
+  revenue.
+- **High-risk individuals** (journalists, activists): subscription / freemium.
+- Revenue comes from **service subscriptions + IoC feed + B2B support**, not from the code,
+  which is free.
 
-> Catatan jujur: open source adalah mesin **kepercayaan & marketing**, bukan mesin uang
-> langsung. "Viral" itu pengecualian yang butuh kualitas nyata + kerja konsisten, bukan
-> otomatis.
+> Honest note: open source is a **trust & marketing** engine, not a direct revenue engine.
+> "Going viral" is the exception — it takes real quality + consistent work, not automatic.
 
-## 9. Peta jalan singkat
+## 9. Short roadmap
 
-1. **Fase 1 (sekarang, gratis):** engine deteksi real + simulator + CLI demo. ✅ berjalan.
-2. **Fase 1b:** integrasi Android (VpnService + shell Kotlin).
-3. **Fase 2 (saat ada budget):** lapisan penjelas AI (mis. Cloudflare Workers AI),
-   pluggable — tanpa membongkar engine.
-4. **Fase 3:** dashboard B2B, feed IoC, monetisasi.
+1. **Phase 1 (now, free):** real detection engine + simulator + CLI demo. ✅ working.
+2. **Phase 1b:** Android integration (VpnService + Kotlin shell).
+3. **Phase 2 (when there is budget):** AI explanation layer (e.g. Cloudflare Workers AI),
+   pluggable — without touching the engine.
+4. **Phase 3:** B2B dashboard, IoC feed, monetization.
 
-Detail: [ROADMAP.md](ROADMAP.md).
+Details: [ROADMAP.md](ROADMAP.md).
+
+## Contact
+
+- Website: [lyxvo.ai](https://lyxvo.ai) · [siappergi.com](https://siappergi.com)
+- Email: halo@siappergi.com

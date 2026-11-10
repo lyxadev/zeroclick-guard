@@ -1,11 +1,11 @@
-//! Engine deteksi: makan `Observation`, keluarkan `Finding`, simpulkan `Verdict`.
+//! Detection engine: eats `Observation`s, emits `Finding`s, concludes `Verdict`s.
 //!
-//! Prinsip desain:
-//! - **Deterministik**: input yang sama → output yang sama, selalu. Bisa diuji
-//!   & diaudit. Tidak ada AI, tidak ada keacakan.
-//! - **Streaming**: observasi diproses satu per satu sesuai urutan waktu,
-//!   seperti di perangkat sungguhan.
-//! - **Menjelaskan diri**: tiap temuan membawa alasan & bobotnya sendiri.
+//! Design principles:
+//! - **Deterministic**: same input → same output, always. Testable and
+//!   auditable. No AI, no randomness.
+//! - **Streaming**: observations are processed one by one in time order, like
+//!   on a real device.
+//! - **Self-explaining**: every finding carries its own reason and weight.
 
 use std::collections::{HashMap, HashSet};
 
@@ -14,27 +14,27 @@ use crate::ioc::IocSet;
 use crate::model::{Finding, Observation, Severity, TimestampMs, Verdict};
 use crate::netutil::is_external;
 
-/// Keadaan per-aplikasi yang diperlukan untuk aturan lintas-waktu
-/// (beaconing, exfiltrasi, korelasi zero-click).
+/// Per-app state needed for cross-time rules (beaconing, exfiltration,
+/// zero-click correlation).
 #[derive(Debug)]
 struct AppState {
-    /// Riwayat waktu koneksi per tujuan (kunci = "ip|port") untuk deteksi beacon.
+    /// Connection timestamps per destination (key = "ip|port") for beacon detection.
     dst_history: HashMap<String, Vec<TimestampMs>>,
-    /// Byte keluar terbaru: (waktu, jumlah) dalam jendela exfiltrasi.
+    /// Recent outbound bytes: (time, amount) within the exfil window.
     out_window: Vec<(TimestampMs, u64)>,
-    /// Waktu media masuk terakhir (pintu zero-click).
+    /// Time of the last inbound media (the zero-click door).
     last_media: Option<TimestampMs>,
-    /// Apakah Accessibility aktif untuk app ini.
+    /// Whether Accessibility is active for this app.
     has_accessibility: bool,
-    /// Izin sensitif yang sudah diberikan.
+    /// Sensitive permissions already granted.
     sensitive_perms: HashSet<String>,
-    /// Tujuan yang pernah dilihat (agar "tujuan baru" hanya dihitung sekali).
+    /// Destinations seen before (so "new destination" is only counted once).
     seen_dsts: HashSet<String>,
-    /// Kunci temuan yang sudah pernah diangkat, agar tidak dobel skor.
+    /// Keys of findings already raised, to avoid double-scoring.
     raised: HashSet<String>,
-    /// Apakah alarm exfiltrasi sedang "terpasang" (anti-spam).
+    /// Whether the exfil alarm is currently "armed" (anti-spam).
     exfil_armed: bool,
-    /// Semua temuan untuk app ini, menumpuk.
+    /// All findings for this app, accumulating.
     findings: Vec<Finding>,
 }
 
@@ -48,8 +48,8 @@ impl Default for AppState {
             sensitive_perms: HashSet::new(),
             seen_dsts: HashSet::new(),
             raised: HashSet::new(),
-            // Alarm exfiltrasi "terpasang" sejak awal; lepas setelah berbunyi,
-            // lalu terpasang lagi saat trafik mereda (anti-spam).
+            // The exfil alarm is "armed" from the start; it disarms after firing,
+            // then re-arms once traffic subsides (anti-spam).
             exfil_armed: true,
             findings: Vec::new(),
         }
@@ -71,8 +71,8 @@ impl Engine {
         }
     }
 
-    /// Jalankan engine atas urutan observasi sekaligus. Mengembalikan semua
-    /// temuan sesuai urutan kemunculannya (berguna untuk demo & log).
+    /// Run the engine over a batch of observations. Returns all findings in the
+    /// order they were raised (useful for demos & logs).
     pub fn run(&mut self, observations: &[Observation]) -> Vec<Finding> {
         let mut all = Vec::new();
         for obs in observations {
@@ -81,7 +81,7 @@ impl Engine {
         all
     }
 
-    /// Proses satu observasi. Mengembalikan temuan BARU yang dipicu olehnya.
+    /// Process a single observation. Returns the NEW findings it triggers.
     pub fn process(&mut self, obs: Observation) -> Vec<Finding> {
         match obs {
             Observation::Flow {
@@ -101,11 +101,8 @@ impl Engine {
             }
             Observation::AppInstalled { ts, app } => {
                 let w = self.config.weights.new_app;
-                let detail = format!(
-                    "Aplikasi baru '{}' terpasang. Perlu dipantau sebentar.",
-                    app
-                );
-                vec![self.raise(&app, ts, "new_app", "Aplikasi baru terpasang", detail, w)]
+                let detail = format!("New app '{}' installed. Worth watching briefly.", app);
+                vec![self.raise(&app, ts, "new_app", "New app installed", detail, w)]
             }
             Observation::Permission {
                 ts,
@@ -116,7 +113,7 @@ impl Engine {
         }
     }
 
-    /// Kumpulkan vonis per-aplikasi, terurut dari paling berbahaya.
+    /// Collect per-app verdicts, sorted most dangerous first.
     pub fn verdicts(&self) -> Vec<Verdict> {
         let mut out: Vec<Verdict> = self
             .apps
@@ -135,8 +132,9 @@ impl Engine {
         out
     }
 
-    // ---- penanganan tiap jenis observasi -------------------------------
+    // ---- handling each observation kind --------------------------------
 
+    #[allow(clippy::too_many_arguments)]
     fn on_flow(
         &mut self,
         ts: TimestampMs,
@@ -151,7 +149,7 @@ impl Engine {
         let external = is_external(&dst_ip);
         let dst_key = format!("{}|{}", dst_ip, dst_port);
 
-        // 1) Cocokkan IoC (paling tegas). Cek IP lalu domain.
+        // 1) Match IoC (most decisive). Check IP then domain.
         let ioc_hit = self
             .ioc
             .match_ip(&dst_ip)
@@ -168,24 +166,20 @@ impl Engine {
             if self.app_mut(&app).raised.insert(key) {
                 let w = self.config.weights.ioc_match;
                 let detail = format!(
-                    "Koneksi ke indikator berbahaya yang dikenal: {} ({}{}).",
+                    "Connection to a known malicious indicator: {} ({}{}).",
                     value,
-                    if label.is_empty() {
-                        "tanpa label"
-                    } else {
-                        &label
-                    },
+                    if label.is_empty() { "no label" } else { &label },
                     if source.is_empty() {
                         String::new()
                     } else {
-                        format!(", sumber: {}", source)
+                        format!(", source: {}", source)
                     }
                 );
-                findings.push(self.raise(&app, ts, "ioc_match", "Cocok daftar IoC", detail, w));
+                findings.push(self.raise(&app, ts, "ioc_match", "IoC list match", detail, w));
             }
         }
 
-        // 2) Buntut zero-click: koneksi eksternal BARU sesaat setelah media masuk.
+        // 2) Zero-click follow-up: a NEW external connection shortly after media.
         if external {
             let is_new = !self.app_mut(&app).seen_dsts.contains(&dst_key);
             let recent_media = self
@@ -199,8 +193,8 @@ impl Engine {
                     let w = self.config.weights.zeroclick_followup;
                     let gap = ts - self.app_mut(&app).last_media.unwrap();
                     let detail = format!(
-                        "'{}' menerima media lalu {} dtk kemudian membuka koneksi baru ke {} \
-                         (luar, belum pernah dihubungi). Ini pola khas serangan zero-click.",
+                        "'{}' received media, then {}s later opened a new connection to {} \
+                         (external, never contacted before). This is a classic zero-click pattern.",
                         app,
                         gap / 1000,
                         dst_ip
@@ -209,7 +203,7 @@ impl Engine {
                         &app,
                         ts,
                         "zeroclick_followup",
-                        "Pola buntut zero-click",
+                        "Zero-click follow-up pattern",
                         detail,
                         w,
                     ));
@@ -217,7 +211,7 @@ impl Engine {
             }
         }
 
-        // 3) Tujuan eksternal baru dari aplikasi latar belakang.
+        // 3) New external destination from a background app.
         if external && app_background {
             let key = format!("unknown_dst|{}", dst_key);
             if !self.app_mut(&app).seen_dsts.contains(&dst_key)
@@ -225,30 +219,29 @@ impl Engine {
             {
                 let w = self.config.weights.unknown_destination;
                 let detail = format!(
-                    "Aplikasi latar belakang '{}' menghubungi tujuan luar yang belum \
-                     dikenal: {}:{}.",
+                    "Background app '{}' contacted an unknown external destination: {}:{}.",
                     app, dst_ip, dst_port
                 );
                 findings.push(self.raise(
                     &app,
                     ts,
                     "unknown_destination",
-                    "Tujuan asing (app latar belakang)",
+                    "Unknown destination (background app)",
                     detail,
                     w,
                 ));
             }
         }
 
-        // Catat tujuan sebagai sudah dilihat (setelah aturan "baru" dievaluasi).
+        // Record the destination as seen (after the "new" rules were evaluated).
         self.app_mut(&app).seen_dsts.insert(dst_key.clone());
 
-        // 4) Deteksi beaconing: koneksi berkala & teratur ke tujuan yang sama.
+        // 4) Beacon detection: periodic, regular connections to the same destination.
         if let Some(f) = self.check_beacon(ts, &app, &dst_key, &dst_ip) {
             findings.push(f);
         }
 
-        // 5) Exfiltrasi: lonjakan byte keluar dari aplikasi latar belakang.
+        // 5) Exfiltration: spike of outbound bytes from a background app.
         if let Some(f) = self.check_exfil(ts, &app, app_background, bytes_out, &dst_ip) {
             findings.push(f);
         }
@@ -279,17 +272,17 @@ impl Engine {
         }
         let key = format!("beacon|{}", dst_key);
         if !st.raised.insert(key) {
-            return None; // sudah diangkat untuk tujuan ini
+            return None; // already raised for this destination
         }
         let w = cfg.weights.beaconing;
         let detail = format!(
-            "Koneksi berulang sangat teratur ke {} setiap ~{} dtk (variasi {:.0}%). \
-             Pola 'menelepon pulang' (beacon) khas C2 spyware.",
+            "Repeated, highly regular connections to {} every ~{}s (variation {:.0}%). \
+             A 'phone home' (beacon) pattern typical of spyware C2.",
             dst_ip,
             (mean / 1000.0).round() as u64,
             cv * 100.0
         );
-        let f = finding(app, ts, "beaconing", "Pola beacon terdeteksi", detail, w);
+        let f = finding(app, ts, "beaconing", "Beacon pattern detected", detail, w);
         st.findings.push(f.clone());
         Some(f)
     }
@@ -305,29 +298,29 @@ impl Engine {
         let cfg = self.config.clone();
         let st = self.app_mut(app);
         st.out_window.push((ts, bytes_out));
-        // Buang entri di luar jendela.
+        // Drop entries outside the window.
         let lo = ts.saturating_sub(cfg.exfil_window_ms);
         st.out_window.retain(|(t, _)| *t >= lo);
         let total: u64 = st.out_window.iter().map(|(_, b)| *b).sum();
 
         if total >= cfg.exfil_threshold_bytes && app_background {
             if st.exfil_armed {
-                st.exfil_armed = false; // satu alarm per lonjakan
+                st.exfil_armed = false; // one alarm per spike
                 let w = cfg.weights.exfil_volume;
                 let detail = format!(
-                    "Aplikasi latar belakang '{}' mengirim ~{} KB keluar ke {} dalam {} dtk. \
-                     Indikasi exfiltrasi data.",
+                    "Background app '{}' sent ~{} KB out to {} within {}s. \
+                     Indication of data exfiltration.",
                     app,
                     total / 1024,
                     dst_ip,
                     cfg.exfil_window_ms / 1000
                 );
-                let f = finding(app, ts, "exfil_volume", "Lonjakan data keluar", detail, w);
+                let f = finding(app, ts, "exfil_volume", "Outbound data spike", detail, w);
                 st.findings.push(f.clone());
                 return Some(f);
             }
         } else if total < cfg.exfil_threshold_bytes {
-            st.exfil_armed = true; // pasang kembali saat trafik mereda
+            st.exfil_armed = true; // re-arm once traffic subsides
         }
         None
     }
@@ -346,7 +339,7 @@ impl Engine {
         self.maybe_accessibility_abuse(ts, &app)
     }
 
-    /// Accessibility + izin sensitif = kombinasi khas spyware Android.
+    /// Accessibility + sensitive permissions = classic Android spyware combo.
     fn maybe_accessibility_abuse(&mut self, ts: TimestampMs, app: &str) -> Vec<Finding> {
         let (has_acc, perms, already) = {
             let st = self.app_mut(app);
@@ -364,8 +357,8 @@ impl Engine {
             let mut list: Vec<String> = perms.into_iter().collect();
             list.sort();
             let detail = format!(
-                "'{}' memakai layanan Accessibility SEKALIGUS memegang izin sensitif [{}]. \
-                 Kombinasi ini sangat umum pada spyware (baca layar + sadap).",
+                "'{}' uses an Accessibility service AND holds sensitive permissions [{}]. \
+                 This combination is very common in spyware (screen reading + eavesdropping).",
                 app,
                 list.join(", ")
             );
@@ -373,7 +366,7 @@ impl Engine {
                 app,
                 ts,
                 "accessibility_abuse",
-                "Penyalahgunaan Accessibility",
+                "Accessibility abuse",
                 detail,
                 w,
             )];
@@ -381,13 +374,13 @@ impl Engine {
         Vec::new()
     }
 
-    // ---- util internal -------------------------------------------------
+    // ---- internal helpers ----------------------------------------------
 
     fn app_mut(&mut self, app: &str) -> &mut AppState {
         self.apps.entry(app.to_string()).or_default()
     }
 
-    /// Bikin finding, simpan ke state app, lalu kembalikan salinannya.
+    /// Build a finding, store it in the app state, and return a copy.
     fn raise(
         &mut self,
         app: &str,
@@ -403,7 +396,7 @@ impl Engine {
     }
 }
 
-/// Bikin satu Finding (tanpa menyentuh state).
+/// Build a single Finding (without touching any state).
 fn finding(
     app: &str,
     ts: TimestampMs,
@@ -422,8 +415,8 @@ fn finding(
     }
 }
 
-/// Hitung rata-rata interval & koefisien variasi dari deret waktu terurut.
-/// Mengembalikan None jika datanya kurang dari 2 titik atau rata-rata nol.
+/// Compute the mean interval and coefficient of variation of a sorted time
+/// series. Returns None if there are fewer than 2 points or the mean is zero.
 fn interval_stats(times: &[TimestampMs]) -> Option<(f64, f64)> {
     if times.len() < 2 {
         return None;
@@ -432,7 +425,7 @@ fn interval_stats(times: &[TimestampMs]) -> Option<(f64, f64)> {
         .windows(2)
         .map(|w| (w[1].saturating_sub(w[0])) as f64)
         .collect();
-    // Abaikan interval nol (kejadian kembar) agar tidak merusak statistik.
+    // Ignore zero intervals (duplicate events) so they don't skew the stats.
     diffs.retain(|d| *d > 0.0);
     if diffs.len() < 2 {
         return None;
@@ -457,7 +450,7 @@ mod tests {
         s.add(IocEntry {
             value: ip.to_string(),
             kind: "ip".to_string(),
-            label: "C2 uji".to_string(),
+            label: "test C2".to_string(),
             source: "test".to_string(),
         });
         s
@@ -485,7 +478,7 @@ mod tests {
     #[test]
     fn beacon_regular_flagged() {
         let mut eng = Engine::new(Config::default(), IocSet::new());
-        // 5 koneksi tiap 60 dtk persis ke tujuan yang sama → beacon.
+        // 5 connections exactly 60s apart to the same destination → beacon.
         for i in 0..5u64 {
             eng.process(Observation::Flow {
                 ts: 1_000 + i * 60_000,
@@ -537,7 +530,7 @@ mod tests {
             bytes: 900_000,
         });
         let f = eng.process(Observation::Flow {
-            ts: 40_000, // 30 dtk setelah media
+            ts: 40_000, // 30s after media
             app: "com.whatsapp".into(),
             app_background: true,
             dst_ip: "203.0.113.50".into(),
@@ -568,7 +561,7 @@ mod tests {
     #[test]
     fn benign_app_stays_clean() {
         let mut eng = Engine::new(Config::default(), IocSet::new());
-        // Aplikasi normal di foreground, koneksi wajar, tak berulang-teratur.
+        // Normal app in the foreground, reasonable connection, not regularly repeated.
         eng.process(Observation::Flow {
             ts: 1_000,
             app: "com.good".into(),

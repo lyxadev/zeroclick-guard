@@ -1,46 +1,49 @@
 # Roadmap
 
-Kami hanya mencantumkan sesuatu sebagai "selesai" bila benar-benar berjalan & teruji.
-Sisanya jelas ditandai sebagai **rencana**.
+We only list something as "done" when it genuinely works and is tested. Everything else is
+clearly marked as **planned**.
 
-## ✅ Fase 1 — Engine inti (berjalan sekarang)
+## ✅ Phase 1 — Core engine (working now)
 
-- [x] Model observasi platform-agnostik (`Observation`).
-- [x] Engine deteksi deterministik (`zcg-core`): IoC, korelasi zero-click, beacon, exfil,
-      penyalahgunaan izin, tujuan asing.
-- [x] Sistem skor → vonis, dapat diaudit & ditala.
-- [x] CLI (`zcg`) untuk menjalankan engine atas berkas/stream observasi.
-- [x] Simulator perilaku jinak (`zcg-testlab`): skenario `zeroclick`, `spyware`, `benign`.
-- [x] Uji otomatis (unit test) untuk setiap aturan + uji anti-false-positive.
+- [x] Platform-agnostic observation model (`Observation`).
+- [x] Deterministic detection engine (`zcg-core`): IoC, zero-click correlation, beacon,
+      exfil, Accessibility+permission abuse, unknown destination.
+- [x] Score → verdict system, auditable & tunable.
+- [x] CLI (`zcg`) to run the engine over observation files/streams, with a cinematic
+      `--replay` mode.
+- [x] Benign behavior simulator (`zcg-testlab`): `zeroclick`, `spyware`, `brutal`, `benign`.
+- [x] Automated tests for every rule + an anti-false-positive test.
+- [x] CI (GitHub Actions): fmt, clippy (deny warnings), tests, and an attack simulation that
+      asserts the real engine catches every threat and stays silent on benign traffic.
 
-## 🔜 Fase 1b — Integrasi Android (rencana)
+## 🔜 Phase 1b — Android integration (planned)
 
-- [ ] Shell aplikasi Android (Kotlin): izin, UI dasar.
-- [ ] `VpnService` lokal untuk menangkap metadata koneksi keluar.
-- [ ] Jembatan Rust↔Kotlin (`uniffi`/JNI) agar `zcg-core` jalan di perangkat.
-- [ ] Pembacaan event sistem: `PackageManager` (app baru), status Accessibility, izin.
-- [ ] Aksi pemutusan koneksi nyata + notifikasi + layar penjelasan.
-- [ ] Uji di perangkat/emulator terhadap skenario simulator.
+- [ ] Android app shell (Kotlin): permissions, basic UI.
+- [ ] Local `VpnService` to capture outbound connection metadata.
+- [ ] Rust↔Kotlin bridge (`uniffi`/JNI) so `zcg-core` runs on the device.
+- [ ] System event reading: `PackageManager` (new apps), Accessibility status, permissions.
+- [ ] Real connection cutoff + notification + an explanation screen.
+- [ ] On-device/emulator testing against the simulator scenarios.
 
-## 🔭 Fase 2 — Lapisan penjelas AI (rencana, saat ada budget)
+## 🔭 Phase 2 — AI explanation layer (planned, when there is budget)
 
-- [ ] Antarmuka penjelas *pluggable* (engine → penjelas), default = template lokal.
-- [ ] Penyambung AI opsional (mis. Cloudflare Workers AI) untuk penjelasan bahasa manusia
-      yang lebih luwes & pengurangan alarm palsu di kasus abu-abu.
-- [ ] Jaga privasi: hanya kirim metadata minimal, dengan izin eksplisit pengguna.
-- [ ] Tetap jujur: fitur disebut "AI" hanya setelah benar-benar memakai model.
+- [ ] Pluggable explainer interface (engine → explainer), default = local templates.
+- [ ] Optional AI connector (e.g. Cloudflare Workers AI) for more fluent human-language
+      explanations and false-positive reduction in gray-area cases.
+- [ ] Privacy-preserving: send only minimal metadata, with explicit user consent.
+- [ ] Stay honest: the feature is called "AI" only once it actually uses a model.
 
-## 🏢 Fase 3 — Monetisasi (rencana)
+## 🏢 Phase 3 — Monetization (planned)
 
-- [ ] Feed IoC premium (ter-update & terkurasi), dengan fokus ancaman di Indonesia/Asia Tenggara.
-- [ ] Dashboard B2B / manajemen tim untuk media, NGO, kantor hukum.
-- [ ] Dukungan & SLA.
+- [ ] Premium IoC feed (fresh & curated), focused on threats in Indonesia/Southeast Asia.
+- [ ] B2B dashboard / team management for newsrooms, NGOs, law firms.
+- [ ] Support & SLA.
 
-## Ide yang sedang dipertimbangkan
+## Ideas under consideration
 
-- Desktop (Linux/Windows) memakai `zcg-core` yang sama + sumber pcap.
-- Impor IoC dari feed publik (format STIX/MISP) ke bentuk IoC internal.
-- Deteksi anomali DNS (banyak domain acak/NXDOMAIN).
-- Mode forensik: pindai log/backup (pendekatan ala MVT) selain pemantauan real-time.
+- Desktop (Linux/Windows) using the same `zcg-core` + a pcap source.
+- Import IoCs from public feeds (STIX/MISP) into the internal IoC format.
+- DNS anomaly detection (many random domains / NXDOMAIN).
+- Forensic mode: scan logs/backups (MVT-style) in addition to real-time monitoring.
 
-> Punya masukan atau ingin membantu? Buka issue atau diskusi di repo.
+> Have feedback or want to help? Open an issue or discussion on the repo.

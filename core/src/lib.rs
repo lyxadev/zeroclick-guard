@@ -1,19 +1,19 @@
 //! # zcg-core
 //!
-//! Engine deteksi inti untuk **zeroclick-guard** — perisai anti-spyware &
-//! zero-click.
+//! The core detection engine for **zeroclick-guard** — an anti-spyware &
+//! zero-click shield.
 //!
-//! Engine ini **deterministik dan berbasis aturan** (bukan AI): ia membaca
-//! aliran [`Observation`] (koneksi jaringan, media masuk, izin, dll.),
-//! menjalankan sekumpulan aturan yang transparan, dan menghasilkan
-//! [`Finding`] berbobot skor yang digabung menjadi [`Verdict`] per-aplikasi.
+//! The engine is **deterministic and rule-based** (not AI): it reads a stream
+//! of [`Observation`]s (network connections, inbound media, permissions, etc.),
+//! runs a set of transparent rules, and produces score-weighted [`Finding`]s
+//! that combine into a per-app [`Verdict`].
 //!
-//! Engine ini sengaja tidak tahu dari mana observasi berasal. Di Android ia
-//! akan diisi oleh VpnService; di desktop bisa dari pcap; di pengujian dari
-//! simulator jinak. Dengan begitu kode deteksi yang sama dipakai di produk
-//! maupun di demo — tidak ada yang dipalsukan.
+//! The engine deliberately does not know where observations come from. On
+//! Android it is fed by a VpnService; on desktop it can come from pcap; in
+//! tests from a benign simulator. That way the same detection code runs in the
+//! product and in the demo — nothing is faked.
 //!
-//! ## Contoh
+//! ## Example
 //! ```
 //! use zcg_core::{Engine, Config, IocSet, Observation};
 //!
@@ -23,7 +23,7 @@
 //!     app: "com.whatsapp".into(),
 //!     bytes: 800_000,
 //! });
-//! assert!(findings.is_empty()); // media saja belum mencurigakan
+//! assert!(findings.is_empty()); // media alone is not yet suspicious
 //! ```
 
 pub mod config;

@@ -1,35 +1,35 @@
-//! Model data inti: observasi masuk, temuan (finding), dan vonis (verdict).
+//! Core data model: incoming observations, findings, and verdicts.
 //!
-//! `Observation` adalah satu-satunya bentuk input ke engine. Dia sengaja
-//! platform-agnostik: di Android nanti diisi oleh VpnService, di desktop
-//! bisa diisi dari pcap atau dari simulator uji. Engine tidak peduli dari
-//! mana datangnya.
+//! [`Observation`] is the only input shape the engine accepts. It is
+//! deliberately platform-agnostic: on Android it is fed by a VpnService, on
+//! desktop it can come from pcap, and in tests from the simulator. The engine
+//! does not care where observations come from.
 
 use serde::{Deserialize, Serialize};
 
-/// Waktu dalam milidetik sejak epoch Unix.
+/// Time in milliseconds since the Unix epoch.
 pub type TimestampMs = u64;
 
 fn default_proto() -> String {
     "tcp".to_string()
 }
 
-/// Satu kejadian yang diamati di perangkat.
+/// A single event observed on the device.
 ///
-/// Format JSON (satu objek per baris, JSONL) dibedakan oleh field `type`:
-/// - `{"type":"flow", ...}`          satu koneksi jaringan keluar
-/// - `{"type":"media", ...}`         aplikasi menerima media masuk (penting untuk zero-click)
-/// - `{"type":"app_installed", ...}` aplikasi baru terpasang
-/// - `{"type":"permission", ...}`    izin diberikan ke aplikasi
-/// - `{"type":"accessibility", ...}` layanan Accessibility diaktifkan untuk aplikasi
+/// JSON form (one object per line, JSONL) is distinguished by the `type` field:
+/// - `{"type":"flow", ...}`          one outbound network connection
+/// - `{"type":"media", ...}`         an app received inbound media (key for zero-click)
+/// - `{"type":"app_installed", ...}` a new app was installed
+/// - `{"type":"permission", ...}`    a permission was granted to an app
+/// - `{"type":"accessibility", ...}` an Accessibility service was enabled for an app
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Observation {
-    /// Satu arus (flow) koneksi jaringan keluar dari sebuah aplikasi.
+    /// One outbound network flow from an app.
     Flow {
         ts: TimestampMs,
         app: String,
-        /// true jika aplikasi sedang di latar belakang (tidak dipakai user).
+        /// true if the app is in the background (not actively used).
         #[serde(default)]
         app_background: bool,
         dst_ip: String,
@@ -37,7 +37,7 @@ pub enum Observation {
         dst_port: u16,
         #[serde(default)]
         domain: Option<String>,
-        /// Byte yang dikirim KELUAR perangkat (indikator exfiltrasi).
+        /// Bytes sent OUT of the device (exfiltration signal).
         #[serde(default)]
         bytes_out: u64,
         #[serde(default)]
@@ -45,23 +45,23 @@ pub enum Observation {
         #[serde(default = "default_proto")]
         proto: String,
     },
-    /// Aplikasi (biasanya messaging) menerima media masuk secara otomatis.
-    /// Inilah pintu masuk klasik serangan zero-click.
+    /// An app (usually a messenger) auto-received inbound media.
+    /// This is the classic entry point for a zero-click attack.
     Media {
         ts: TimestampMs,
         app: String,
         #[serde(default)]
         bytes: u64,
     },
-    /// Aplikasi baru terpasang.
+    /// A new app was installed.
     AppInstalled { ts: TimestampMs, app: String },
-    /// Sebuah izin diberikan ke aplikasi (mis. "RECORD_AUDIO").
+    /// A permission was granted to an app (e.g. "RECORD_AUDIO").
     Permission {
         ts: TimestampMs,
         app: String,
         permission: String,
     },
-    /// Layanan Accessibility diaktifkan untuk aplikasi — sering disalahgunakan spyware.
+    /// An Accessibility service was enabled for an app — often abused by spyware.
     Accessibility { ts: TimestampMs, app: String },
 }
 
@@ -87,25 +87,25 @@ impl Observation {
     }
 }
 
-/// Tingkat keparahan, terurut dari paling rendah ke paling tinggi.
+/// Severity level, ordered from lowest to highest.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
-    /// Tidak ada indikasi berarti.
+    /// No meaningful indication.
     Clean,
-    /// Perlu diperhatikan, belum tentu jahat.
+    /// Worth keeping an eye on; not necessarily malicious.
     Low,
-    /// Mencurigakan.
+    /// Suspicious.
     Medium,
-    /// Kemungkinan besar spyware.
+    /// Likely spyware.
     High,
-    /// Sangat kuat indikasinya — rekomendasi: putus & karantina.
+    /// Very strong indication — recommendation: cut off & quarantine.
     Critical,
 }
 
 impl Severity {
-    /// Pemetaan skor kumulatif per-aplikasi ke tingkat keparahan.
-    /// Deterministik & bisa diaudit — tidak ada tebakan.
+    /// Map a per-app cumulative score to a severity level.
+    /// Deterministic and auditable — no guessing.
     pub fn from_score(score: u32) -> Severity {
         match score {
             0..=9 => Severity::Clean,
@@ -118,33 +118,33 @@ impl Severity {
 
     pub fn label_id(&self) -> &'static str {
         match self {
-            Severity::Clean => "AMAN",
-            Severity::Low => "PANTAU",
-            Severity::Medium => "MENCURIGAKAN",
-            Severity::High => "KEMUNGKINAN SPYWARE",
-            Severity::Critical => "BAHAYA",
+            Severity::Clean => "SAFE",
+            Severity::Low => "WATCH",
+            Severity::Medium => "SUSPICIOUS",
+            Severity::High => "LIKELY SPYWARE",
+            Severity::Critical => "DANGER",
         }
     }
 }
 
-/// Satu temuan yang dihasilkan oleh sebuah aturan deteksi.
+/// A single finding produced by a detection rule.
 ///
-/// Setiap temuan selalu membawa alasannya sendiri (`detail`) dan bobot
-/// skornya (`score`). Tidak ada "kotak hitam": setiap keputusan bisa
-/// ditelusuri balik ke aturan mana yang memicunya.
+/// Every finding carries its own reason (`detail`) and score weight (`score`).
+/// There is no "black box": each decision can be traced back to the rule that
+/// raised it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Finding {
     pub ts: TimestampMs,
     pub app: String,
-    /// ID aturan yang stabil (untuk pengujian & korelasi), mis. "ioc_match".
+    /// Stable rule ID (for tests & correlation), e.g. "ioc_match".
     pub rule: String,
     pub title: String,
     pub detail: String,
     pub score: u32,
 }
 
-/// Vonis gabungan untuk satu aplikasi: total skor, tingkat keparahan, dan
-/// semua temuan yang menyusunnya.
+/// Combined verdict for a single app: total score, severity, and all the
+/// findings that make it up.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Verdict {
     pub app: String,
@@ -154,7 +154,7 @@ pub struct Verdict {
 }
 
 impl Verdict {
-    /// true jika aplikasi ini layak diblokir/dikarantina otomatis.
+    /// true if this app warrants automatic blocking/quarantine.
     pub fn should_block(&self) -> bool {
         self.severity >= Severity::High
     }

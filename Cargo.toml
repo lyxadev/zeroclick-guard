@@ -15,7 +15,8 @@ version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/lyxadev/zeroclick-guard"
-authors = ["lyxadev"]
+homepage = "https://lyxvo.ai"
+authors = ["lyxadev <halo@siappergi.com>"]
 
 [workspace.dependencies]
 serde = { version = "1.0.210", features = ["derive"] }

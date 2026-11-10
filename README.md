@@ -2,135 +2,171 @@
 
 # ⚡ zeroclick-guard
 
-**Perisai anti-spyware & zero-click untuk Android — dan desktop.**
+**An anti-spyware & zero-click shield for Android — and desktop.**
 
-Mendeteksi & memutus perilaku spyware (koneksi C2, exfiltrasi data, penyalahgunaan izin)
-langsung di perangkat. Berbasis aturan, deterministik, bisa diaudit.
-Tanpa AI. Tanpa cloud. Privasi penuh.
+Detects and cuts off spyware behavior (C2 connections, data exfiltration, permission
+abuse) right on the device. Rule-based, deterministic, auditable.
+No AI. No cloud. Full privacy.
 
-[![lisensi](https://img.shields.io/badge/lisensi-GPLv3-blue.svg)](LICENSE)
-[![status](https://img.shields.io/badge/status-pengembangan%20awal-orange.svg)](#status)
-[![bahasa](https://img.shields.io/badge/core-Rust-orange.svg)](core/)
+[![CI](https://github.com/lyxadev/zeroclick-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/lyxadev/zeroclick-guard/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+[![status](https://img.shields.io/badge/status-early%20development-orange.svg)](#status)
+[![core](https://img.shields.io/badge/core-Rust-orange.svg)](core/)
 
 </div>
 
 ---
 
 > ### 🚧 Status
-> **Tahap pengembangan awal.** Engine deteksi inti **sudah berfungsi penuh & bisa
-> didemokan** (lihat di bawah). Integrasi Android (VpnService) sedang dikerjakan —
-> lihat [Roadmap](docs/ROADMAP.md). Kami hanya mengklaim apa yang benar-benar jalan.
+> **Early development.** The core detection engine **already works end-to-end and is
+> demoable** (see below). Android integration (VpnService) is in progress — see the
+> [Roadmap](docs/ROADMAP.md). We only claim what actually runs.
 
-## Apa ini — dan apa yang TIDAK kami janjikan
+## What this is — and what we do NOT promise
 
-Spyware canggih (kelas Pegasus) sering masuk lewat serangan **zero-click**: korban tidak
-perlu mengklik apa pun — aplikasi seperti WhatsApp otomatis memproses media jahat, dan
-exploit berjalan di dalam proses itu.
+Advanced spyware (Pegasus-class) often arrives via a **zero-click** attack: the victim does
+not have to tap anything — an app like WhatsApp automatically processes malicious media, and
+the exploit runs inside that process.
 
-**Jujur sejak awal:** di Android tanpa root, **tidak ada** perangkat lunak yang bisa
-*mencegah* exploit zero-click itu sendiri — exploit terjadi di dalam proses aplikasi lain
-yang disegel oleh Android. Siapa pun yang mengklaim bisa mencegah 100%, berbohong.
+**Honest from the start:** on Android without root, **no** software can *prevent* the
+zero-click exploit itself — it happens inside another app's process, sealed off by Android.
+Anyone claiming 100% prevention is lying.
 
-Yang **bisa** — dan ini yang zeroclick-guard lakukan — adalah **menangkap serangan dari
-jejak perilakunya** dalam hitungan detik: spyware *harus* menelepon pulang (C2), *harus*
-mengirim data keluar. Di sanalah kami mendeteksi dan **memutus** koneksinya.
+What **is** possible — and what zeroclick-guard does — is to **catch the attack by its
+behavioral traces** within seconds: spyware *must* phone home (C2), *must* send data out.
+That is where we detect and **cut off** the connection.
 
-> Analogi: kami bukan rompi anti-peluru. Kami alarm & detektor asap yang berbunyi keras
-> saat ada yang terbakar, lalu menutup pintunya — sehingga korban **tahu** dan kerugian
-> **dihentikan**. Kelemahan terbesar korban spyware adalah mereka tidak pernah sadar.
+> Analogy: we are not a bulletproof vest. We are the smoke detector and alarm that goes off
+> loudly when something is burning, then shuts the door — so the victim **knows** and the
+> damage is **stopped**. A spyware victim's biggest weakness is never realizing they were hit.
 
-## Cara kerja (ringkas)
+## How it works (in short)
 
 ```
-   Sumber observasi            Engine deteksi (zcg-core)          Aksi
- ┌──────────────────┐        ┌───────────────────────────┐    ┌──────────────┐
- │ Android VpnService│  ───▶  │  aturan + skor + IoC       │──▶ │ alert + putus │
- │ (lalu lintas HP)  │        │  korelasi zero-click       │    │ koneksi + saran│
- │ pcap / simulator  │        │  deteksi beacon & exfil    │    └──────────────┘
- └──────────────────┘        └───────────────────────────┘
+   Observation sources           Detection engine (zcg-core)        Action
+ ┌──────────────────┐          ┌───────────────────────────┐    ┌──────────────┐
+ │ Android VpnService│   ───▶   │  rules + score + IoC       │──▶ │ alert + cut   │
+ │ (device traffic)  │          │  zero-click correlation    │    │ off + guidance │
+ │ pcap / simulator  │          │  beacon & exfil detection  │    └──────────────┘
+ └──────────────────┘          └───────────────────────────┘
 ```
 
-Engine inti **platform-agnostik**: ia hanya memakan aliran *observasi* (koneksi jaringan,
-media masuk, izin). Hari ini bisa dijalankan di desktop; integrasi Android mengisi engine
-yang sama. **Engine yang dipakai di demo = engine yang dipakai di produk.** Tidak ada yang
-dipalsukan.
+The core engine is **platform-agnostic**: it only eats a stream of *observations* (network
+connections, inbound media, permissions). Today it runs on desktop; Android integration
+feeds the same engine. **The engine used in the demo is the engine used in the product.**
+Nothing is faked.
 
-### Apa yang dideteksi
+### What gets detected
 
-| Aturan | Sinyal | Skor |
+| Rule | Signal | Score |
 |---|---|---|
-| `ioc_match` | Koneksi ke IP/domain jahat yang dikenal | +50 |
-| `zeroclick_followup` | Koneksi luar **baru** sesaat setelah media masuk | +40 |
-| `accessibility_abuse` | Accessibility + izin sensitif (sadap) | +35 |
-| `beaconing` | Koneksi berkala sangat teratur (menelepon pulang) | +30 |
-| `exfil_volume` | Lonjakan data keluar dari app latar belakang | +25 |
-| `unknown_destination` | App latar belakang → tujuan luar asing | +15 |
+| `ioc_match` | Connection to a known-bad IP/domain | +50 |
+| `zeroclick_followup` | **New** external connection shortly after inbound media | +40 |
+| `accessibility_abuse` | Accessibility + sensitive permissions (eavesdropping) | +35 |
+| `beaconing` | Highly regular periodic connections (phoning home) | +30 |
+| `exfil_volume` | Outbound data spike from a background app | +25 |
+| `unknown_destination` | Background app → unknown external destination | +15 |
 
-Skor menumpuk per-aplikasi → vonis: `AMAN` · `PANTAU` · `MENCURIGAKAN` · `KEMUNGKINAN
-SPYWARE` · `BAHAYA`. Detail: [docs/DETECTION.md](docs/DETECTION.md).
+Scores accumulate per app → verdict: `SAFE` · `WATCH` · `SUSPICIOUS` · `LIKELY SPYWARE` ·
+`DANGER`. Details: [docs/DETECTION.md](docs/DETECTION.md).
 
-## Coba sendiri (± 1 menit)
+## Try it yourself (~1 minute)
 
-Butuh [Rust](https://rustup.rs). Clone lalu:
+Needs [Rust](https://rustup.rs). Clone, then:
 
 ```bash
 cargo build --workspace
 ```
 
-Jalankan simulator serangan **jinak** dan pipa ke engine:
+Run the **benign** attack simulator and pipe it into the engine:
 
 ```bash
 ./target/debug/zcg-testlab zeroclick | ./target/debug/zcg --ioc examples/ioc-testlab.json
 ```
 
-Hasilnya (serangan zero-click ditangkap, lalu diberi vonis):
+Output (the zero-click attack is caught, then given a verdict):
 
 ```
-[00:40.000] Cocok daftar IoC (+50)  com.whatsapp
-    Koneksi ke indikator berbahaya yang dikenal: 203.0.113.50 ...
-[00:40.000] Pola buntut zero-click (+40)  com.whatsapp
-    'com.whatsapp' menerima media lalu 30 dtk kemudian membuka koneksi baru ke
-    203.0.113.50 (luar, belum pernah dihubungi). Ini pola khas serangan zero-click.
-[00:50.000] Lonjakan data keluar (+25)  com.whatsapp
-    'com.whatsapp' mengirim ~3128 KB keluar ke 203.0.113.50 ...
+  ├─ [00:40.000] IoC list match (+50)  com.whatsapp
+  │    Connection to a known malicious indicator: 203.0.113.50 ...
+  ├─ [00:40.000] Zero-click follow-up pattern (+40)  com.whatsapp
+  │    'com.whatsapp' received media, then 30s later opened a new connection to
+  │    203.0.113.50 (external, never contacted before). Classic zero-click pattern.
+  ├─ [00:50.000] Outbound data spike (+25)  com.whatsapp
 
-── RINGKASAN VONIS ──
-  com.whatsapp           skor 130  BAHAYA → REKOMENDASI: putus koneksi & karantina
+══════════ VERDICT SUMMARY ══════════
+  com.whatsapp             score 130  DANGER → CUT OFF & QUARANTINED
 ```
 
-Bandingkan dengan perilaku **normal** (seharusnya tidak ada alarm):
+### 🔥 The "brutal" demo (live, for recording)
+
+A coordinated, APT-style attack — **zero-click in two messengers + spyware disguised as a
+"system update"** — hits one victim at once and is neutralized **live** with cinematic tempo:
+
+```bash
+./scripts/demo.sh brutal        # or: zcg-testlab brutal | zcg --ioc ... --replay
+```
+
+The attack unfolds on screen, then is cut off one by one:
+
+```
+ ⛔ com.system.update.helper DANGER — CONNECTION CUT & QUARANTINED (score 105)
+ ⛔ com.whatsapp             DANGER — CONNECTION CUT & QUARANTINED (score 105)
+ ⛔ org.telegram.messenger   DANGER — CONNECTION CUT & QUARANTINED (score 105)
+ ⛔ THREAT NEUTRALIZED — 3 app(s) cut off & quarantined
+```
+
+> Still honest: `--replay` only controls the **display tempo** so it is watchable. Every
+> alert, score, and cutoff comes from the **exact same engine** as the product.
+
+Compare with **normal** behavior (should raise no alarm):
 
 ```bash
 ./target/debug/zcg-testlab benign | ./target/debug/zcg --ioc examples/ioc-testlab.json
 ```
 
-> **Simulator itu jinak.** `zcg-testlab` hanya *mencetak catatan observasi* yang meniru
-> **pola perilaku** serangan. Tidak ada exploit atau spyware sungguhan di dalamnya —
-> seperti latihan kebakaran: asapnya simulasi, alarmnya (engine) asli. Lihat
-> [testlab/](testlab/).
+> **The simulator is benign.** `zcg-testlab` only *prints observation records* that mimic
+> attack **behavior patterns**. There is no real exploit or spyware inside it — like a fire
+> drill: the smoke is simulated, the alarm (the engine) is real. See [testlab/](testlab/).
 
-## Struktur proyek
+## Project layout
 
 ```
 zeroclick-guard/
-├── core/      zcg-core  — engine deteksi (library, Rust). Jantung produk.
-├── cli/       zcg       — jalankan engine atas berkas observasi (demo & uji).
-├── testlab/   zcg-testlab — simulator perilaku JINAK untuk demo & pengujian.
-├── examples/  contoh daftar IoC untuk demo.
-└── docs/      DESIGN (acuan), DETECTION (aturan & skor), ROADMAP.
+├── core/      zcg-core   — detection engine (Rust library). The heart of the product.
+├── cli/       zcg        — run the engine over observation files (demo & test).
+├── testlab/   zcg-testlab — BENIGN behavior simulator for demos & testing.
+├── examples/  sample IoC lists for the demo.
+├── scripts/   demo.sh — play the brutal demo for recording.
+└── docs/      DESIGN (reference), DETECTION (rules & scoring), ROADMAP.
 ```
 
-## Dokumentasi
+## Continuous integration
 
-- 📐 [docs/DESIGN.md](docs/DESIGN.md) — visi, arsitektur, apa yang realistis, prinsip kejujuran.
-- 🔍 [docs/DETECTION.md](docs/DETECTION.md) — aturan deteksi & sistem skor, lengkap.
-- 🗺️ [docs/ROADMAP.md](docs/ROADMAP.md) — rencana bertahap.
+Every push runs [GitHub Actions](.github/workflows/ci.yml): format check, Clippy (with
+warnings denied), unit tests — **and an attack simulation that asserts the real engine
+catches every threat scenario and stays silent on benign traffic.** The attack being
+neutralized is printed in the CI logs for anyone to read.
 
-## Lisensi
+## Documentation
 
-[GPLv3](LICENSE). Bebas dipakai, dipelajari, dan diaudit — dan tetap terbuka: siapa pun
-yang mendistribusikan versi modifikasi wajib ikut membukanya.
+- 📐 [docs/DESIGN.md](docs/DESIGN.md) — vision, architecture, what is realistic, honesty principles.
+- 🔍 [docs/DETECTION.md](docs/DETECTION.md) — detection rules & scoring system, in full.
+- 🗺️ [docs/ROADMAP.md](docs/ROADMAP.md) — phased plan.
+
+## License
+
+[GPLv3](LICENSE). Free to use, study, and audit — and it stays open: anyone distributing a
+modified version must open theirs too.
+
+## Contact & official links
+
+- 🌐 Website: **[lyxvo.ai](https://lyxvo.ai)** · **[siappergi.com](https://siappergi.com)**
+- ✉️ Email: **halo@siappergi.com**
+- 💻 Repository: [github.com/lyxadev/zeroclick-guard](https://github.com/lyxadev/zeroclick-guard)
+
+For organizations (newsrooms, NGOs, law firms) or partnerships, reach us at the email above.
 
 ---
 
-<div align="center"><sub>Dibuat untuk membantu orang-orang yang jadi target di Indonesia & dunia.</sub></div>
+<div align="center"><sub>Built to help people who are targeted, in Indonesia and around the world.</sub></div>

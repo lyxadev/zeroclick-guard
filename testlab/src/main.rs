@@ -1,22 +1,25 @@
-//! `zcg-testlab` — simulator perilaku JINAK.
+//! `zcg-testlab` — a BENIGN behavior simulator.
 //!
-//! ⚠️  PENTING: program ini TIDAK berisi exploit, payload, atau spyware
-//! sungguhan. Ia hanya MENCETAK catatan observasi (JSONL) yang MENIRU *pola
-//! perilaku* serangan — koneksi berkala, lonjakan data, dsb. — supaya engine
-//! deteksi bisa diuji & didemokan secara jujur dan berulang.
+//! ⚠️  IMPORTANT: this program contains NO real exploit, payload, or spyware.
+//! It only PRINTS observation records (JSONL) that MIMIC the *behavior
+//! patterns* of an attack — periodic connections, data spikes, etc. — so the
+//! detection engine can be tested and demoed honestly and repeatably.
 //!
-//! Analoginya seperti latihan kebakaran: asapnya simulasi, tapi alarm yang
-//! diuji (engine zeroclick-guard) 100% asli.
+//! Think of it as a fire drill: the smoke is simulated, but the alarm being
+//! tested (the zeroclick-guard engine) is 100% real.
 //!
-//! Penggunaan:
-//!   zcg-testlab <skenario>
-//! Skenario:
-//!   zeroclick   Pola serangan zero-click (media masuk → C2 → beacon → exfil).
-//!   spyware     Spyware "dipasang" (Accessibility + izin sensitif + C2).
-//!   benign      Perilaku aplikasi normal (harus TIDAK memicu alarm).
+//! Usage:
+//!   zcg-testlab <scenario>
+//! Scenarios:
+//!   zeroclick   Zero-click attack pattern (media in → C2 → beacon → exfil).
+//!   spyware     Spyware "installed" (Accessibility + sensitive perms + C2).
+//!   brutal      Coordinated APT-style attack across multiple apps at once.
+//!   benign      Normal app behavior (must NOT trigger any alarm).
 //!
-//! Contoh demo (pipa langsung ke engine):
-//!   zcg-testlab zeroclick | zcg --ioc examples/ioc-testlab.json
+//! Demo example (pipe straight into the engine):
+//!   zcg-testlab brutal | zcg --ioc examples/ioc-testlab.json --replay
+
+#![allow(clippy::vec_init_then_push)]
 
 use zcg_core::Observation;
 
@@ -26,34 +29,35 @@ fn main() {
         "zeroclick" => scenario_zeroclick(),
         "spyware" => scenario_spyware(),
         "benign" => scenario_benign(),
+        "brutal" => scenario_brutal(),
         _ => {
             eprintln!(
-                "simulator perilaku jinak zeroclick-guard\n\n\
-                 skenario: zeroclick | spyware | benign\n\n\
-                 contoh: zcg-testlab zeroclick | zcg --ioc examples/ioc-testlab.json\n\n\
-                 Catatan: ini hanya mencetak observasi tiruan (JSONL). Tidak ada\n\
-                 exploit atau spyware sungguhan di dalamnya."
+                "zeroclick-guard benign behavior simulator\n\n\
+                 scenarios: zeroclick | spyware | brutal | benign\n\n\
+                 example: zcg-testlab brutal | zcg --ioc examples/ioc-testlab.json --replay\n\n\
+                 Note: this only prints mock observations (JSONL). There is no real\n\
+                 exploit or spyware inside it."
             );
             std::process::exit(if scenario.is_empty() { 0 } else { 1 });
         }
     };
     for o in obs {
-        // Tiap observasi satu baris JSON (JSONL).
+        // One JSON object per line (JSONL).
         println!(
             "{}",
-            serde_json::to_string(&o).expect("serialisasi observasi")
+            serde_json::to_string(&o).expect("serialize observation")
         );
     }
 }
 
-/// Skenario zero-click: WhatsApp menerima media, lalu "proses yang
-/// dikompromikan" menelepon C2, mengirim data, lalu beacon berkala.
+/// Zero-click scenario: WhatsApp receives media, then the "compromised
+/// process" calls a C2, sends data, then beacons periodically.
 fn scenario_zeroclick() -> Vec<Observation> {
     let app = "com.whatsapp";
-    let c2 = "203.0.113.50"; // TEST-NET-3 (RFC 5737) — alamat uji, bukan host nyata
+    let c2 = "203.0.113.50"; // TEST-NET-3 (RFC 5737) — a test address, not a real host
     let mut v = Vec::new();
 
-    // Lalu lintas normal lebih dulu: WhatsApp bicara ke servernya sendiri.
+    // Normal traffic first: WhatsApp talking to its own servers.
     v.push(flow(
         2_000,
         app,
@@ -65,20 +69,20 @@ fn scenario_zeroclick() -> Vec<Observation> {
         8_000,
     ));
 
-    // t=10s: media masuk otomatis (pintu zero-click). Belum mencurigakan.
+    // t=10s: media auto-received (the zero-click door). Not yet suspicious.
     v.push(Observation::Media {
         ts: 10_000,
         app: app.to_string(),
         bytes: 920_000,
     });
 
-    // t=40s: 30 dtk setelah media, koneksi BARU ke C2 luar (buntut zero-click).
+    // t=40s: 30s after media, a NEW connection to an external C2 (zero-click follow-up).
     v.push(flow(40_000, app, true, c2, 443, None, 2_400, 200));
 
-    // t=50s: lonjakan data keluar (exfiltrasi kontak/pesan).
+    // t=50s: outbound data spike (exfiltrating contacts/messages).
     v.push(flow(50_000, app, true, c2, 443, None, 3_200_000, 400));
 
-    // Beacon: "menelepon pulang" tiap 60 dtk persis ke C2 yang sama.
+    // Beacon: "phones home" every 60s exactly to the same C2.
     for i in 1..=5u64 {
         v.push(flow(
             40_000 + i * 60_000,
@@ -95,10 +99,10 @@ fn scenario_zeroclick() -> Vec<Observation> {
     v
 }
 
-/// Skenario spyware terpasang: app menyamar, minta Accessibility + izin
-/// sensitif, lalu beacon ke C2.
+/// Installed-spyware scenario: an app in disguise requests Accessibility +
+/// sensitive permissions, then beacons to a C2.
 fn scenario_spyware() -> Vec<Observation> {
-    let app = "com.senter.flashlight"; // "aplikasi senter" yang mencurigakan
+    let app = "com.senter.flashlight"; // a suspicious "flashlight app"
     let c2 = "203.0.113.77";
     let mut v = Vec::new();
 
@@ -126,7 +130,7 @@ fn scenario_spyware() -> Vec<Observation> {
         app: app.to_string(),
     });
 
-    // Beacon ke C2 tiap 90 dtk.
+    // Beacon to C2 every 90s.
     for i in 0..5u64 {
         v.push(flow(
             10_000 + i * 90_000,
@@ -142,11 +146,188 @@ fn scenario_spyware() -> Vec<Observation> {
     v
 }
 
-/// Skenario normal: harus TIDAK memicu alarm (uji false-positive).
+/// BRUTAL scenario: a coordinated, APT-style attack on ONE victim at once.
+/// Three vectors run in parallel — zero-click in 2 messengers + spyware
+/// disguised as a "system update". Built for a dramatic demo; the defender is
+/// still the real engine. All addresses use RFC 5737 test space (not real hosts).
+fn scenario_brutal() -> Vec<Observation> {
+    let mut v = Vec::new();
+
+    // ── Normal traffic first, so the contrast lands ──
+    v.push(flow(
+        1_000,
+        "com.android.chrome",
+        false,
+        "203.0.113.1",
+        443,
+        Some("news.example"),
+        800,
+        60_000,
+    ));
+    v.push(flow(
+        3_000,
+        "com.whatsapp",
+        false,
+        "198.51.100.10",
+        443,
+        Some("whatsapp.example"),
+        1_000,
+        7_000,
+    ));
+    v.push(flow(
+        4_500,
+        "org.telegram.messenger",
+        false,
+        "198.51.100.20",
+        443,
+        Some("telegram.example"),
+        900,
+        5_000,
+    ));
+
+    // ── VECTOR 1: zero-click via WhatsApp ──
+    let wa_c2 = "203.0.113.50";
+    v.push(Observation::Media {
+        ts: 12_000,
+        app: "com.whatsapp".into(),
+        bytes: 980_000,
+    });
+    v.push(flow(
+        34_000,
+        "com.whatsapp",
+        true,
+        wa_c2,
+        443,
+        Some("evil.example"),
+        2_600,
+        180,
+    )); // zero-click follow-up + IoC
+    v.push(flow(
+        44_000,
+        "com.whatsapp",
+        true,
+        wa_c2,
+        443,
+        None,
+        5_400_000,
+        300,
+    )); // large exfil
+    for i in 1..=5u64 {
+        v.push(flow(
+            34_000 + i * 60_000,
+            "com.whatsapp",
+            true,
+            wa_c2,
+            443,
+            None,
+            900,
+            120,
+        )); // beacon
+    }
+
+    // ── VECTOR 2: zero-click via Telegram to a different C2 ──
+    let tg_c2 = "203.0.113.99";
+    v.push(Observation::Media {
+        ts: 20_000,
+        app: "org.telegram.messenger".into(),
+        bytes: 1_240_000,
+    });
+    v.push(flow(
+        41_000,
+        "org.telegram.messenger",
+        true,
+        tg_c2,
+        8443,
+        None,
+        3_100,
+        240,
+    )); // zero-click follow-up + IoC
+    v.push(flow(
+        55_000,
+        "org.telegram.messenger",
+        true,
+        tg_c2,
+        8443,
+        None,
+        2_800_000,
+        260,
+    )); // exfil
+    for i in 1..=4u64 {
+        v.push(flow(
+            41_000 + i * 75_000,
+            "org.telegram.messenger",
+            true,
+            tg_c2,
+            8443,
+            None,
+            700,
+            90,
+        )); // beacon
+    }
+
+    // ── VECTOR 3: spyware disguised as a "system update" ──
+    let spy = "com.system.update.helper";
+    let spy_c2 = "198.51.100.200";
+    v.push(Observation::AppInstalled {
+        ts: 8_000,
+        app: spy.into(),
+    });
+    v.push(Observation::Permission {
+        ts: 9_000,
+        app: spy.into(),
+        permission: "RECORD_AUDIO".into(),
+    });
+    v.push(Observation::Permission {
+        ts: 9_500,
+        app: spy.into(),
+        permission: "READ_SMS".into(),
+    });
+    v.push(Observation::Permission {
+        ts: 10_000,
+        app: spy.into(),
+        permission: "CAMERA".into(),
+    });
+    v.push(Observation::Permission {
+        ts: 10_500,
+        app: spy.into(),
+        permission: "ACCESS_FINE_LOCATION".into(),
+    });
+    v.push(Observation::Accessibility {
+        ts: 11_000,
+        app: spy.into(),
+    });
+    v.push(flow(
+        15_000,
+        spy,
+        true,
+        spy_c2,
+        443,
+        Some("evil.example"),
+        4_200,
+        300,
+    )); // IoC domain
+    v.push(flow(60_000, spy, true, spy_c2, 443, None, 6_800_000, 400)); // massive exfil
+    for i in 1..=6u64 {
+        v.push(flow(
+            15_000 + i * 60_000,
+            spy,
+            true,
+            spy_c2,
+            443,
+            None,
+            1_100,
+            150,
+        )); // beacon
+    }
+
+    v
+}
+
+/// Benign scenario: must NOT trigger any alarm (false-positive test).
 fn scenario_benign() -> Vec<Observation> {
     let mut v = Vec::new();
 
-    // Browser di foreground, koneksi wajar & tak teratur ke macam-macam CDN.
+    // Browser in the foreground, reasonable and irregular connections to various CDNs.
     let chrome = "com.android.chrome";
     v.push(flow(
         1_000,
@@ -189,9 +370,9 @@ fn scenario_benign() -> Vec<Observation> {
         30_000,
     ));
 
-    // WhatsApp menerima media, lalu bicara ke server yang SAMA seperti biasa
-    // (sudah dikenal) — jadi BUKAN buntut zero-click. Ini menunjukkan korelasi
-    // kita soal tujuan BARU, bukan sekadar "ada koneksi setelah media".
+    // WhatsApp receives media, then talks to the SAME server it always does
+    // (already known) — so NOT a zero-click follow-up. This shows our
+    // correlation is about NEW destinations, not merely "a connection after media".
     let wa = "com.whatsapp";
     v.push(flow(
         5_000,
@@ -219,8 +400,8 @@ fn scenario_benign() -> Vec<Observation> {
         5_000,
     ));
 
-    // App musik streaming di background, data MASUK besar (wajar), keluar kecil.
-    // Interval sengaja TAK TERATUR (streaming asli bursty) → bukan beacon.
+    // Music streaming app in the background, large data IN (normal), small data out.
+    // Intervals are deliberately IRREGULAR (real streaming is bursty) → not a beacon.
     let music = "com.music.player";
     let music_times = [2_000u64, 18_000, 51_000, 133_000];
     for t in music_times {
@@ -239,7 +420,7 @@ fn scenario_benign() -> Vec<Observation> {
     v
 }
 
-/// Pembuat observasi Flow yang ringkas.
+/// Compact helper to build a Flow observation.
 #[allow(clippy::too_many_arguments)]
 fn flow(
     ts: u64,

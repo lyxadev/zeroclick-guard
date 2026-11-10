@@ -1,10 +1,11 @@
-//! Utilitas jaringan kecil — tanpa dependensi eksternal.
+//! Small network utilities — no external dependencies.
 
-/// Apakah alamat IPv4 ini termasuk ruang privat/lokal (bukan Internet publik)?
+/// Does this IPv4 address belong to private/local space (not the public
+/// Internet)?
 ///
-/// Dipakai untuk membedakan "koneksi ke luar negeri yang asing" dari lalu
-/// lintas lokal (router, perangkat LAN, localhost). Hanya IPv4 untuk sekarang;
-/// alamat yang tak bisa diparse dianggap publik (lebih aman untuk deteksi).
+/// Used to tell a "strange foreign connection" apart from local traffic
+/// (router, LAN devices, localhost). IPv4 only for now; an address that cannot
+/// be parsed is treated as public (safer for detection).
 pub fn is_private_ipv4(ip: &str) -> bool {
     let octets: Vec<u8> = match parse_ipv4(ip) {
         Some(o) => o,
@@ -23,7 +24,7 @@ pub fn is_private_ipv4(ip: &str) -> bool {
     }
 }
 
-/// Apakah tujuan ini "eksternal" (Internet publik)?
+/// Is this destination "external" (public Internet)?
 pub fn is_external(ip: &str) -> bool {
     !is_private_ipv4(ip) && !is_private_ipv6(ip)
 }
@@ -58,7 +59,7 @@ mod tests {
         assert!(is_private_ipv4("192.168.1.1"));
         assert!(is_private_ipv4("172.16.0.1"));
         assert!(is_private_ipv4("127.0.0.1"));
-        assert!(!is_private_ipv4("203.0.113.9")); // TEST-NET-3, dianggap eksternal
+        assert!(!is_private_ipv4("203.0.113.9")); // TEST-NET-3, treated as external
         assert!(!is_private_ipv4("8.8.8.8"));
     }
 
@@ -71,7 +72,7 @@ mod tests {
 
     #[test]
     fn unparseable_is_public() {
-        // Gagal parse → anggap publik (lebih aman untuk mendeteksi).
-        assert!(!is_private_ipv4("bukan-ip"));
+        // Parse failure → treat as public (safer for detection).
+        assert!(!is_private_ipv4("not-an-ip"));
     }
 }
