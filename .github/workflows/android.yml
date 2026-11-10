@@ -29,6 +29,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: "" # skip the action's default (obsolete 'tools'); install below
 
       - name: Install SDK packages
         run: yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
