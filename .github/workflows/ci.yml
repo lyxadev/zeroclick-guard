@@ -97,3 +97,8 @@ jobs:
 
       - name: "Show the brutal attack being neutralized (for the logs)"
         run: ./target/release/zcg-testlab brutal | ./target/release/zcg --ioc examples/ioc-testlab.json || true
+
+      # Level-2 proof: the engine fed by REAL TCP socket traffic. Logs-only
+      # (not a gate) because it depends on real wall-clock timing.
+      - name: "Live proof on real traffic (zcg-proof)"
+        run: ./target/release/zcg-proof com.ci.realtraffic 6 2000 || true

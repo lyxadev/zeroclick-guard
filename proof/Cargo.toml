@@ -1,0 +1,16 @@
+[package]
+name = "zcg-proof"
+description = "Level-2 proof: feed the engine REAL network traffic (not scripted observations) from actual TCP sockets."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "zcg-proof"
+path = "src/main.rs"
+
+[dependencies]
+zcg-core = { path = "../core" }

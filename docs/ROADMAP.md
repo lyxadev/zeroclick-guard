@@ -15,6 +15,9 @@ clearly marked as **planned**.
 - [x] Automated tests for every rule + an anti-false-positive test.
 - [x] CI (GitHub Actions): fmt, clippy (deny warnings), tests, and an attack simulation that
       asserts the real engine catches every threat and stays silent on benign traffic.
+- [x] World Spyware Gauntlet: behavioral profiles of 7 known families, all detected (CI-gated).
+- [x] Level-2 proof (`zcg-proof`): engine fed by **real TCP socket traffic**, not scripted
+      observations. See [PROOF.md](PROOF.md).
 
 ## 🔜 Phase 1b — Android integration (planned)
 

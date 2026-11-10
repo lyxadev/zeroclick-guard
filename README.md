@@ -155,6 +155,23 @@ cargo build --workspace --release
 > against a live, evolving implant; it is evidence the detection logic works and is not just
 > theory. This same gauntlet runs in [CI](.github/workflows/ci.yml) on every push.
 
+### 🧪 Not just theory: proof on REAL traffic
+
+The gauntlet above feeds the engine *scripted* observations. `zcg-proof` does not — it feeds
+the engine **genuine network traffic** and catches it live:
+
+```bash
+./target/release/zcg-proof     # ~15s
+```
+
+![Live proof on real traffic](docs/media/live-proof.gif)
+
+A benign process opens **real TCP connections** on a cadence and sends a real 3 MB transfer;
+a sensor **measures the actual sockets** (connect timing + byte volumes) and feeds the engine
+live. The beacon's *"variation 0%"* and the *~2930 KB* exfil are measured from real sockets,
+not hard-coded. See [docs/PROOF.md](docs/PROOF.md) for exactly what is real vs. provided, and
+the honest limits of what this proves.
+
 Compare with **normal** behavior (should raise no alarm):
 
 ```bash
@@ -172,9 +189,10 @@ zeroclick-guard/
 ├── core/      zcg-core   — detection engine (Rust library). The heart of the product.
 ├── cli/       zcg        — run the engine over observation files (demo & test).
 ├── testlab/   zcg-testlab — BENIGN behavior simulator for demos & testing.
-├── examples/  sample IoC lists for the demo.
-├── scripts/   demo.sh — play the brutal demo for recording.
-└── docs/      DESIGN (reference), DETECTION (rules & scoring), ROADMAP.
+├── proof/     zcg-proof  — Level-2 proof: feeds the engine REAL socket traffic.
+├── examples/  sample IoC lists for the demos & the gauntlet.
+├── scripts/   demo.sh · benchmark.sh (gauntlet) · make_gif.py · make_proof_gif.py
+└── docs/      DESIGN · DETECTION · PROOF · ROADMAP.
 ```
 
 ## Continuous integration
@@ -188,6 +206,7 @@ neutralized is printed in the CI logs for anyone to read.
 
 - 📐 [docs/DESIGN.md](docs/DESIGN.md) — vision, architecture, what is realistic, honesty principles.
 - 🔍 [docs/DETECTION.md](docs/DETECTION.md) — detection rules & scoring system, in full.
+- 🧪 [docs/PROOF.md](docs/PROOF.md) — the proof ladder: scripted → real traffic → on-device.
 - 🗺️ [docs/ROADMAP.md](docs/ROADMAP.md) — phased plan.
 
 ## License

@@ -8,6 +8,7 @@ members = [
     "core",
     "cli",
     "testlab",
+    "proof",
 ]
 
 [workspace.package]
