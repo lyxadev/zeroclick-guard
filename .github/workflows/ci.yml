@@ -98,7 +98,8 @@ jobs:
       - name: "Show the brutal attack being neutralized (for the logs)"
         run: ./target/release/zcg-testlab brutal | ./target/release/zcg --ioc examples/ioc-testlab.json || true
 
-      # Level-2 proof: the engine fed by REAL TCP socket traffic. Logs-only
-      # (not a gate) because it depends on real wall-clock timing.
-      - name: "Live proof on real traffic (zcg-proof)"
-        run: ./target/release/zcg-proof com.ci.realtraffic 6 2000 || true
+      # Level-2 proof: real traffic through an enforcement gateway. Exits 0 only
+      # if the block is independently verified (C2 gets 0 bytes after block) and
+      # the normal app is not a false positive. This GATES the build.
+      - name: "Verified blocking on real traffic (zcg-proof)"
+        run: ./target/release/zcg-proof

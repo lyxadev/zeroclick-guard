@@ -155,22 +155,32 @@ cargo build --workspace --release
 > against a live, evolving implant; it is evidence the detection logic works and is not just
 > theory. This same gauntlet runs in [CI](.github/workflows/ci.yml) on every push.
 
-### 🧪 Not just theory: proof on REAL traffic
+### 🧪 Verified prevention on REAL traffic (not just "QUARANTINED")
 
-The gauntlet above feeds the engine *scripted* observations. `zcg-proof` does not — it feeds
-the engine **genuine network traffic** and catches it live:
+The gauntlet feeds *scripted* observations. `zcg-proof` does not — it runs real traffic
+through an enforcement gateway, **blocks** the threat, and **independently verifies** the
+block:
 
 ```bash
-./target/release/zcg-proof     # ~15s
+./target/release/zcg-proof     # ~3s; exits 0 only if blocking is verified
 ```
 
-![Live proof on real traffic](docs/media/live-proof.gif)
+![Live proof: detect, enforce, verify](docs/media/live-proof.gif)
 
-A benign process opens **real TCP connections** on a cadence and sends a real 3 MB transfer;
-a sensor **measures the actual sockets** (connect timing + byte volumes) and feeds the engine
-live. The beacon's *"variation 0%"* and the *~2930 KB* exfil are measured from real sockets,
-not hard-coded. See [docs/PROOF.md](docs/PROOF.md) for exactly what is real vs. provided, and
-the honest limits of what this proves.
+A benign process opens **real TCP connections** (incl. a real 3 MB transfer) through a guard
+gateway — the same role Android's VpnService plays. When the engine flags it, the guard
+**stops forwarding** that app. Then a controlled C2 server, **counting bytes itself**, proves
+the outcome:
+
+```
+Controlled C2 — bytes received AFTER block:  0 bytes  ✓
+Post-block connection attempts: 100  → 100 blocked / 0 forwarded  ✓
+Normal app after block: 912 bytes delivered  ✓ (NOT blocked)   ← no false positive
+```
+
+"0 bytes after block" is the destination's own tally, not our claim. A machine-readable
+record lands in `target/zcg-evidence.json`. See [docs/PROOF.md](docs/PROOF.md) for the full
+real-vs-provided breakdown and honest limits (full OS-level anti-bypass is on-device, Level 3).
 
 Compare with **normal** behavior (should raise no alarm):
 
@@ -204,9 +214,10 @@ neutralized is printed in the CI logs for anyone to read.
 
 ## Documentation
 
+- 🚀 [docs/VISION.md](docs/VISION.md) — "Beyond Pegasus": the capability matrix, each row tied to its proof status.
 - 📐 [docs/DESIGN.md](docs/DESIGN.md) — vision, architecture, what is realistic, honesty principles.
 - 🔍 [docs/DETECTION.md](docs/DETECTION.md) — detection rules & scoring system, in full.
-- 🧪 [docs/PROOF.md](docs/PROOF.md) — the proof ladder: scripted → real traffic → on-device.
+- 🧪 [docs/PROOF.md](docs/PROOF.md) — the proof ladder: scripted → real traffic + verified blocking → on-device.
 - 🗺️ [docs/ROADMAP.md](docs/ROADMAP.md) — phased plan.
 
 ## License

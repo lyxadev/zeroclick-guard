@@ -16,8 +16,12 @@ clearly marked as **planned**.
 - [x] CI (GitHub Actions): fmt, clippy (deny warnings), tests, and an attack simulation that
       asserts the real engine catches every threat and stays silent on benign traffic.
 - [x] World Spyware Gauntlet: behavioral profiles of 7 known families, all detected (CI-gated).
-- [x] Level-2 proof (`zcg-proof`): engine fed by **real TCP socket traffic**, not scripted
-      observations. See [PROOF.md](PROOF.md).
+- [x] Level-2 proof (`zcg-proof`): real traffic through an enforcement gateway — detect →
+      **block** → **independently verify** (controlled C2 receives 0 bytes after block,
+      100/100 attempts blocked, normal app unaffected). Evidence recorder writes JSON.
+      CI-gated. See [PROOF.md](PROOF.md).
+- [x] Vision & honesty tracker ([VISION.md](VISION.md)): every "Beyond Pegasus" capability
+      tied to a proof status (✅ / ◑ / 🔭), moved to ✅ only with a re-runnable test.
 
 ## 🔜 Phase 1b — Android integration (planned)
 

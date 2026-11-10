@@ -61,32 +61,39 @@ def capture():
         env=env,
     ).stdout
     # The mono font lacks these emoji glyphs; swap for ones it has.
-    for a, b in (("⛔", "■"), ("⚠", "▲"), ("⚡", "»")):
+    for a, b in (("⛔", "■"), ("⚠", "▲"), ("⚡", "»"), ("✔", "✓")):
         out = out.replace(a, b)
     return [ln.rstrip("\n") for ln in out.splitlines()]
+
+
+import re
 
 
 def style(line):
     """Return (color, bold, bg) for a whole line based on its content."""
     s = line.strip()
-    if "THREAT NEUTRALIZED" in line or "CONNECTION CUT & QUARANTINED" in line:
+    if "NEUTRALIZED" in line:
         return (WHITE, True, REDBG)
-    if "LIKELY SPYWARE" in line:
+    if s.startswith("[") and s.endswith("]"):
+        return (CYAN, True, None)  # section header like [VERIFICATION]
+    if "LIKELY SPYWARE" in line or s.startswith("▲"):
         return (RED, True, None)
-    if "SUSPICIOUS" in line:
-        return (YELLOW, True, None)
-    if "DANGER" in line and "score" in line:
+    if "Bypass" in line:  # "... detected: NO" is the GOOD outcome here
+        return ((GREEN, True, None) if line.rstrip().endswith("NO") else (RED, True, None))
+    # Verdict value lines: "LABEL:   YES" / "... : NO"
+    m = re.search(r":\s+(YES|NO)\s*$", line)
+    if m:
+        return ((GREEN, True, None) if m.group(1) == "YES" else (RED, True, None))
+    if "✗" in line:
         return (RED, True, None)
-    if s.startswith("├─") or s.startswith("├"):
+    if "✓" in line:
+        return (GREEN, False, None)
+    if s.startswith("├"):
         return (WHITE, True, None)
-    if s.startswith("│"):
+    if s.startswith("│") or s.startswith("·") or "evidence written" in line:
         return (DIM, False, None)
-    if s.startswith("·"):
-        return (DIM, False, None)
-    if any(ch in line for ch in "┌└│") or "zeroclick-guard" in line or "VERDICT" in line:
+    if any(ch in line for ch in "┌└") or "zeroclick-guard" in line:
         return (CYAN, True, None)
-    if "✓ No threat" in line:
-        return (GREEN, True, None)
     return (WHITE, False, None)
 
 
